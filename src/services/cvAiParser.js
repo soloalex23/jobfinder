@@ -119,6 +119,9 @@ async function callClaude(client, cvText, temperature) {
 }
 
 async function parseCvWithAi(cvText) {
+  console.log('API Key presente:', !!process.env.ANTHROPIC_API_KEY);
+  console.log('API Key primeros 10 chars:', process.env.ANTHROPIC_API_KEY?.substring(0, 10));
+
   if (!config.anthropic.apiKey) {
     throw new Error('Falta la API key de Anthropic (ANTHROPIC_API_KEY).');
   }
