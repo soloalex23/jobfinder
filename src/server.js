@@ -1,3 +1,21 @@
+// `undici` (dependencia transitiva de cheerio, usada por los scrapers)
+// referencia el global `File` sin comprobar al cargarse
+// (webidl/index.js: "webidl.is.File = ...MakeTypeAssertion(File)"), lo que
+// revienta con "ReferenceError: File is not defined" en runtimes sin ese
+// global (Node < 20). Se poliféllea ANTES de cualquier otro require —
+// especialmente antes de las rutas, que arrastran cheerio transitivamente.
+// El fix real es exigir Node >= 20 (ver "engines" en package.json y
+// .nvmrc), esto es una red de seguridad adicional.
+if (typeof globalThis.File === 'undefined') {
+  try {
+    const { File } = require('node:buffer');
+    if (File) globalThis.File = File;
+  } catch {
+    // Node demasiado antiguo (< 19.8) sin File en node:buffer.
+    // Requiere Node >= 20 — ver "engines" en package.json.
+  }
+}
+
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
