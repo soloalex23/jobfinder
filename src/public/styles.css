@@ -378,9 +378,31 @@ select { appearance: none; cursor: pointer; }
 
 .chip-remove:hover { background: rgba(79, 70, 229, 0.3); }
 
-/* ---------- Salary slider ---------- */
-input[type="range"] { width: 100%; accent-color: var(--accent); margin-top: 4px; }
-#salaryValue { color: var(--accent); font-weight: 700; }
+/* ---------- Salario ---------- */
+.salary-field { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin-top: 4px; }
+
+.salary-toggle {
+  display: flex;
+  border: 1.5px solid var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.salary-toggle-btn {
+  border: none;
+  background: var(--bg);
+  color: var(--text-secondary);
+  padding: 0 14px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.salary-toggle-btn.active { background: var(--accent); color: #fff; }
+
+.salary-input { flex: 1; min-width: 140px; }
 
 /* ---------- Source chips ---------- */
 .sources-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }

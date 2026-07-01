@@ -310,8 +310,18 @@
         </div>
 
         <div class="field">
-          <label for="salarySlider">Salario mínimo esperado: <span id="salaryValue">Sin filtro</span></label>
-          <input type="range" id="salarySlider" min="0" max="15000" step="500" value="0">
+          <label>Salario mínimo esperado · opcional</label>
+          <div class="salary-field">
+            <div class="salary-toggle" id="salaryCurrencyToggle">
+              <button type="button" class="salary-toggle-btn active" data-value="COP">COP</button>
+              <button type="button" class="salary-toggle-btn" data-value="USD">USD</button>
+            </div>
+            <div class="salary-toggle" id="salaryPeriodToggle">
+              <button type="button" class="salary-toggle-btn active" data-value="monthly">Mensual</button>
+              <button type="button" class="salary-toggle-btn" data-value="annual">Anual</button>
+            </div>
+            <input type="text" inputmode="numeric" id="salaryInput" class="salary-input" placeholder="ej. 8.000.000" autocomplete="off">
+          </div>
         </div>
       </div>
 

@@ -19,7 +19,10 @@ function toArray(value) {
 // POST /api/jobs/search
 // Content-Type: application/json (el CV ya se parseó antes vía /api/cv/parse)
 // body: { role, keywords, seniority[], experience, country, modality[],
-//         contractType, industry[], minSalary, sources, cvText, cvSkills }
+//         contractType, industry[], minSalary, salaryOriginal, salaryCurrency,
+//         salaryPeriod, sources, cvText, cvSkills }
+// minSalary ya llega normalizado a USD mensual desde el frontend; los demás
+// campos de salario son solo para trazabilidad/depuración.
 router.post('/search', async (req, res) => {
   try {
     const {
@@ -88,7 +91,6 @@ router.post('/search', async (req, res) => {
       colombiaQueryEn,
       modality: modalityForSources,
       contractType,
-      minSalary,
       sources,
     });
 
@@ -107,6 +109,7 @@ router.post('/search', async (req, res) => {
       seniority,
       modality,
       country,
+      minSalary,
     });
 
     jobs = dedupeSimilarJobs(jobs).sort((a, b) => b.compatibilityScore - a.compatibilityScore);

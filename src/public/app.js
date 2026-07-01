@@ -9,6 +9,7 @@
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
   const ALLOWED_EXTENSIONS = /\.(pdf|docx)$/i;
   const MAX_SKILLS_VISIBLE = 12;
+  const COP_PER_USD = 4200;
 
   const PORTAL_TYPE_LABELS = {
     greenhouse: 'Greenhouse',
@@ -43,6 +44,8 @@
     seniority: new Set(),
     modality: new Set(),
     industries: new Set(),
+    salaryCurrency: 'COP',
+    salaryPeriod: 'monthly',
     targetCompanies: {
       suggestions: { nacionales: [], transnacionales: [] },
       manual: [], // [{ nombre }] agregadas a mano, sin tipo de ATS resuelto aún
@@ -125,8 +128,9 @@
   const industryPanel = document.getElementById('industryPanel');
   const industryClearBtn = document.getElementById('industryClearBtn');
   const industrySelectedChips = document.getElementById('industrySelectedChips');
-  const salarySlider = document.getElementById('salarySlider');
-  const salaryValue = document.getElementById('salaryValue');
+  const salaryCurrencyToggle = document.getElementById('salaryCurrencyToggle');
+  const salaryPeriodToggle = document.getElementById('salaryPeriodToggle');
+  const salaryInput = document.getElementById('salaryInput');
   const sourcesChips = document.getElementById('sourcesChips');
   const linkedinBtn = document.getElementById('linkedinBtn');
   const formError = document.getElementById('formError');
@@ -550,10 +554,50 @@
   roleInput.addEventListener('input', updateLinkedinHref);
 
   // ---------- Salario ----------
-  salarySlider.addEventListener('input', () => {
-    const value = Number(salarySlider.value);
-    salaryValue.textContent = value === 0 ? 'Sin filtro' : `$${value.toLocaleString('en-US')} USD`;
+  const SALARY_PLACEHOLDERS = {
+    COP: { monthly: 'ej. 8.000.000', annual: 'ej. 96.000.000' },
+    USD: { monthly: 'ej. 2.000', annual: 'ej. 24.000' },
+  };
+
+  function updateSalaryPlaceholder() {
+    salaryInput.placeholder = SALARY_PLACEHOLDERS[state.salaryCurrency][state.salaryPeriod];
+  }
+
+  function wireSalaryToggle(container, stateKey) {
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.salary-toggle-btn');
+      if (!btn) return;
+      container.querySelectorAll('.salary-toggle-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      state[stateKey] = btn.dataset.value;
+      updateSalaryPlaceholder();
+    });
+  }
+
+  wireSalaryToggle(salaryCurrencyToggle, 'salaryCurrency');
+  wireSalaryToggle(salaryPeriodToggle, 'salaryPeriod');
+  updateSalaryPlaceholder();
+
+  salaryInput.addEventListener('input', () => {
+    const digits = salaryInput.value.replace(/\D/g, '');
+    salaryInput.value = digits ? Number(digits).toLocaleString('es-CO') : '';
   });
+
+  function getSalaryRawValue() {
+    const digits = salaryInput.value.replace(/\D/g, '');
+    return digits ? Number(digits) : null;
+  }
+
+  // Normaliza siempre a USD mensual para poder comparar contra el salario
+  // de las vacantes en el backend, sin importar qué moneda/periodicidad
+  // haya elegido el usuario.
+  function normalizeSalaryToMonthlyUsd(value, currency, period) {
+    if (value == null) return null;
+    let v = value;
+    if (currency === 'COP') v /= COP_PER_USD;
+    if (period === 'annual') v /= 12;
+    return v;
+  }
 
   // ---------- Fuentes de búsqueda ----------
   sourcesChips.addEventListener('click', (e) => {
@@ -646,6 +690,7 @@
   }
 
   function buildJobsPayload() {
+    const salaryRaw = getSalaryRawValue();
     return {
       role: roleInput.value.trim() || null,
       keywords: state.keywords,
@@ -655,7 +700,10 @@
       modality: Array.from(state.modality),
       contractType: contractSelect.value || null,
       industry: Array.from(state.industries),
-      minSalary: Number(salarySlider.value) || null,
+      minSalary: normalizeSalaryToMonthlyUsd(salaryRaw, state.salaryCurrency, state.salaryPeriod),
+      salaryOriginal: salaryRaw,
+      salaryCurrency: state.salaryCurrency,
+      salaryPeriod: state.salaryPeriod,
       sources: Array.from(state.sources),
       cvText: state.cvParsed?.cvText || null,
       cvSkills: state.cvParsed?.habilidades || [],
@@ -712,12 +760,31 @@
     return 'score-low';
   }
 
+  // job.salaryMin/salaryMax llegan en USD anual (única fuente que expone
+  // salario hoy es Remotive, cuyos rangos son anuales en USD). Se convierten
+  // aquí a la moneda/periodicidad que el usuario eligió en el formulario.
   function formatSalary(min, max) {
-    const fmt = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
-    if (min != null && max != null && min !== max) return `${fmt(min)} - ${fmt(max)}`;
-    if (min != null) return `${fmt(min)}+`;
-    if (max != null) return fmt(max);
-    return null;
+    if (min == null && max == null) return null;
+    const { salaryCurrency: currency, salaryPeriod: period } = state;
+    const periodSuffix = period === 'annual' ? '/año' : '/mes';
+
+    const convert = (usdAnnual) => {
+      let v = period === 'annual' ? usdAnnual : usdAnnual / 12;
+      if (currency === 'COP') v *= COP_PER_USD;
+      return v;
+    };
+
+    const fmt = (n) => {
+      const rounded = Math.round(convert(n));
+      if (currency === 'COP') return `$${rounded.toLocaleString('es-CO')} COP`;
+      return `$${rounded.toLocaleString('en-US')}`;
+    };
+
+    let text;
+    if (min != null && max != null && min !== max) text = `${fmt(min)} - ${fmt(max)}`;
+    else if (min != null) text = `${fmt(min)}+`;
+    else text = fmt(max);
+    return `${text} ${periodSuffix}`;
   }
 
   function buildPill(text, extraClass, bgColor) {

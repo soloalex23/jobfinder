@@ -17,16 +17,6 @@ const SOURCE_KEYS = {
 };
 const ALL_SOURCE_KEYS = Object.values(SOURCE_KEYS);
 
-function filterBySalary(jobs, minSalary) {
-  const min = minSalary ? Number(minSalary) : null;
-  if (!min) return jobs;
-  return jobs.filter((job) => {
-    if (job.salaryMin == null && job.salaryMax == null) return true;
-    const top = job.salaryMax ?? job.salaryMin;
-    return top >= min;
-  });
-}
-
 // A/B/C (Computrabajo, Indeed, ElEmpleo): query_es como primaria, query_en
 // como secundaria. Se ejecutan de forma secuencial con delay antes de cada
 // request (dos rondas por fuente, una por idioma) para no golpear los
@@ -109,7 +99,7 @@ async function searchGlobalSources(queryEs, queryEn, enabled, { modality, contra
 }
 
 async function searchAllSources({
-  queryEs, queryEn, colombiaQueryEs, colombiaQueryEn, modality, contractType, minSalary, sources,
+  queryEs, queryEn, colombiaQueryEs, colombiaQueryEn, modality, contractType, sources,
 }) {
   const requested = Array.isArray(sources) && sources.length
     ? sources.map((s) => SOURCE_KEYS[s] || s)
@@ -126,7 +116,6 @@ async function searchAllSources({
   const sourcesFailed = Array.from(new Set([...colombia.sourcesFailed, ...global.sourcesFailed]))
     .filter((k) => !sourcesUsed.includes(k));
 
-  results = filterBySalary(results, minSalary);
   results = results.map((job) => ({ ...job, seniority: inferSeniority(job.title) }));
 
   return { results, sourcesUsed, sourcesFailed };

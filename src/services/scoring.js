@@ -94,23 +94,36 @@ function contextScore(job, { seniority, modality, country }) {
   return score;
 }
 
+// Penalización de 10 puntos si el salario de la vacante (disponible) está
+// por debajo del mínimo esperado por el usuario. job.salaryMin/salaryMax
+// llegan en USD anual (única fuente que expone salario hoy es Remotive);
+// minSalary ya llega normalizado a USD mensual desde el frontend.
+function salaryPenalty(job, minSalary) {
+  if (!minSalary) return 0;
+  const top = job.salaryMax ?? job.salaryMin;
+  if (top == null) return 0;
+  const jobMonthlyUsd = top / 12;
+  return jobMonthlyUsd < minSalary ? 10 : 0;
+}
+
 function scoreJob(job, {
-  roleEs, roleEn, keywordsEs, keywordsEn, skillsEs, skillsEn, hasCv, seniority, modality, country,
+  roleEs, roleEn, keywordsEs, keywordsEn, skillsEs, skillsEn, hasCv, seniority, modality, country, minSalary,
 }) {
   const kwScore = keywordScore(keywordsEs, keywordsEn, job.title, job.description);
   const skScore = hasCv ? skillsScore(skillsEs, skillsEn, job.description) : 0;
   const roleWeight = hasCv ? 20 : 45; // el 25% de habilidades se redistribuye al rol si no hay CV
   const rlScore = roleScore(roleEs, roleEn, job.title, roleWeight);
   const ctxScore = contextScore(job, { seniority, modality, country });
+  const penalty = salaryPenalty(job, minSalary);
 
-  const total = kwScore + skScore + rlScore + ctxScore;
+  const total = kwScore + skScore + rlScore + ctxScore - penalty;
   return Math.round(Math.min(100, Math.max(0, total)));
 }
 
 function scoreJobs(jobs, params) {
   const {
     roleEs, roleEn, keywordsEs = [], keywordsEn = [], skillsEs = [], skillsEn = [],
-    cvText, seniority, modality, country,
+    cvText, seniority, modality, country, minSalary,
   } = params;
   const hasCv = Boolean((cvText && cvText.trim()) || (skillsEs && skillsEs.length) || (skillsEn && skillsEn.length));
 
@@ -118,7 +131,7 @@ function scoreJobs(jobs, params) {
     .map((job) => ({
       ...job,
       compatibilityScore: scoreJob(job, {
-        roleEs, roleEn, keywordsEs, keywordsEn, skillsEs, skillsEn, hasCv, seniority, modality, country,
+        roleEs, roleEn, keywordsEs, keywordsEn, skillsEs, skillsEn, hasCv, seniority, modality, country, minSalary,
       }),
     }))
     .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
