@@ -49,6 +49,9 @@ app.use((err, req, res, next) => {
   next();
 });
 
-app.listen(config.port, () => {
-  console.log(`Servidor escuchando en http://localhost:${config.port}`);
+// '0.0.0.0' es obligatorio en Railway (y contenedores en general): sin
+// especificar el host, el bind puede resolver a un socket que el proxy
+// de la plataforma no puede alcanzar, aunque el puerto sea el correcto.
+app.listen(config.port, '0.0.0.0', () => {
+  console.log(`Servidor escuchando en puerto ${config.port}`);
 });
