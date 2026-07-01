@@ -8,6 +8,11 @@ const router = express.Router();
 // POST /api/cv/parse
 // multipart/form-data: cv (archivo PDF/DOCX, requerido, máx. 5MB)
 router.post('/parse', upload.single('cv'), async (req, res) => {
+  console.log('CV parse request recibida');
+  console.log('Archivo:', req.file ? req.file.originalname + ' ' + req.file.size + ' bytes' : 'NO HAY ARCHIVO');
+  console.log('Node version:', process.version);
+  console.log('ENV:', process.env.NODE_ENV);
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Debes subir un archivo PDF o DOCX en el campo "cv".' });
