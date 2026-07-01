@@ -1,0 +1,25 @@
+{
+  "name": "jobfinder-backend",
+  "version": "1.0.0",
+  "description": "Backend que extrae texto de un CV en PDF, consulta la API de Adzuna con keywords y filtros, y devuelve vacantes con score de compatibilidad.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.0",
+    "axios": "^1.7.9",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mammoth": "^1.12.0",
+    "multer": "^2.0.1",
+    "pdfjs-dist": "^4.10.38"
+  }
+}
