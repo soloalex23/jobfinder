@@ -1,6 +1,7 @@
 console.log('=== VARIABLES DE ENTORNO ===');
 console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'PRESENTE (' + process.env.ANTHROPIC_API_KEY.substring(0,15) + '...)' : 'AUSENTE');
 console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('TEST_VAR:', process.env.TEST_VAR || 'AUSENTE');
 console.log('============================');
 
 // `undici` (dependencia transitiva de cheerio, usada por los scrapers)
