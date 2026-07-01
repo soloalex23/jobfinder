@@ -1,3 +1,8 @@
+console.log('=== VARIABLES DE ENTORNO ===');
+console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'PRESENTE (' + process.env.ANTHROPIC_API_KEY.substring(0,15) + '...)' : 'AUSENTE');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('============================');
+
 // `undici` (dependencia transitiva de cheerio, usada por los scrapers)
 // referencia el global `File` sin comprobar al cargarse
 // (webidl/index.js: "webidl.is.File = ...MakeTypeAssertion(File)"), lo que
