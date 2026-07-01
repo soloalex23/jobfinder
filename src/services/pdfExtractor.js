@@ -32,6 +32,7 @@ function reconstructLines(items) {
 }
 
 async function extractTextFromPdf(buffer) {
+  console.log('Iniciando extracción PDF con pdfjs-dist...');
   const pdfjsLib = await loadPdfjs();
   const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
   const pdf = await loadingTask.promise;
@@ -44,7 +45,9 @@ async function extractTextFromPdf(buffer) {
   }
 
   await pdf.destroy();
-  return pageTexts.join('\n').trim();
+  const texto = pageTexts.join('\n').trim();
+  console.log('Texto extraído, longitud:', texto.length);
+  return texto;
 }
 
 module.exports = { extractTextFromPdf };

@@ -27,6 +27,8 @@ router.post('/parse', upload.single('cv'), async (req, res) => {
 
     res.json({ ...parsed, cvText });
   } catch (err) {
+    console.error('ERROR en cv/parse:', err.message);
+    console.error('STACK:', err.stack);
     res.status(500).json({ error: err.message || 'No se pudo leer el CV.' });
   }
 });
