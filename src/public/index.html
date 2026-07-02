@@ -10,6 +10,53 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+
+    <!-- Logo / título de la app -->
+    <div class="sidebar-header">
+      <span class="sidebar-logo">💼</span>
+      <span class="sidebar-title">JobFinder</span>
+    </div>
+
+    <!-- CV compartido (siempre visible en el sidebar) -->
+    <div class="sidebar-cv-status" id="sidebarCvStatus">
+      <div class="cv-status-empty" id="cvStatusEmpty">
+        <span class="cv-icon">📄</span>
+        <span class="cv-status-text">No CV loaded</span>
+      </div>
+      <div class="cv-status-loaded" id="cvStatusLoaded" style="display:none;">
+        <span class="cv-icon">✅</span>
+        <div class="cv-status-info">
+          <span class="cv-status-name" id="cvStatusName">—</span>
+          <button class="cv-change-btn" id="cvChangeBtn">Change CV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-section="job-search" onclick="switchSection('job-search')">
+        <span class="nav-icon">🔍</span>
+        <span class="nav-label">Job Search</span>
+      </button>
+      <button class="nav-item" data-section="resume-health" onclick="switchSection('resume-health')">
+        <span class="nav-icon">📋</span>
+        <span class="nav-label">Resume Health</span>
+      </button>
+      <button class="nav-item" data-section="job-match" onclick="switchSection('job-match')">
+        <span class="nav-icon">🎯</span>
+        <span class="nav-label">Job Match</span>
+      </button>
+    </nav>
+
+  </nav>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="main-content" id="mainContent">
+
+    <!-- SECCIÓN 1: JOB SEARCH -->
+    <section class="app-section active" id="section-job-search">
 
 <header class="app-header">
   <div class="header-inner">
@@ -31,7 +78,7 @@
   </div>
 </header>
 
-<main class="app-main">
+<div class="app-main">
 
   <!-- PANTALLA 1: formulario -->
   <section id="screen-form" class="screen">
@@ -420,7 +467,59 @@
     </div>
   </section>
 
-</main>
+</div>
+
+    </section>
+
+    <!-- SECCIÓN 2: RESUME HEALTH -->
+    <section class="app-section" id="section-resume-health">
+      <div class="coming-soon-container">
+        <div class="coming-soon-icon">📋</div>
+        <h2 class="coming-soon-title">Resume Health</h2>
+        <p class="coming-soon-subtitle">ATS Compliance Analysis &amp; CV Improvement</p>
+        <div class="coming-soon-features">
+          <div class="feature-item">
+            <span class="feature-check">✓</span>
+            <span>ATS compatibility score</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-check">✓</span>
+            <span>Keyword gap analysis</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-check">✓</span>
+            <span>AI-powered CV improvement suggestions</span>
+          </div>
+        </div>
+        <span class="coming-soon-badge">Coming Soon</span>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 3: JOB MATCH -->
+    <section class="app-section" id="section-job-match">
+      <div class="coming-soon-container">
+        <div class="coming-soon-icon">🎯</div>
+        <h2 class="coming-soon-title">Job Match</h2>
+        <p class="coming-soon-subtitle">JD vs CV Analysis, CV Tailoring &amp; Cover Letter</p>
+        <div class="coming-soon-features">
+          <div class="feature-item">
+            <span class="feature-check">✓</span>
+            <span>Match % between your CV and any job description</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-check">✓</span>
+            <span>AI-tailored CV aligned to the JD</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-check">✓</span>
+            <span>Auto-generated cover letter</span>
+          </div>
+        </div>
+        <span class="coming-soon-badge">Coming Soon</span>
+      </div>
+    </section>
+
+  </main>
 
 <template id="jobCardTemplate">
   <article class="job-card">

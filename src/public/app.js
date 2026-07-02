@@ -1,3 +1,51 @@
+// =============================================
+// NAVEGACIÓN POR SECCIONES
+// =============================================
+
+function switchSection(sectionId) {
+  // Ocultar todas las secciones
+  document.querySelectorAll('.app-section').forEach((s) => s.classList.remove('active'));
+  // Mostrar la sección seleccionada
+  document.getElementById('section-' + sectionId).classList.add('active');
+
+  // Actualizar estado activo en sidebar
+  document.querySelectorAll('.nav-item').forEach((btn) => btn.classList.remove('active'));
+  document.querySelector('[data-section="' + sectionId + '"]').classList.add('active');
+}
+
+// =============================================
+// CV COMPARTIDO — ESTADO GLOBAL
+// =============================================
+
+function updateSidebarCvStatus(fileName, profile) {
+  const empty = document.getElementById('cvStatusEmpty');
+  const loaded = document.getElementById('cvStatusLoaded');
+  const name = document.getElementById('cvStatusName');
+
+  if (fileName && profile) {
+    empty.style.display = 'none';
+    loaded.style.display = 'flex';
+    // Mostrar nombre del candidato si está disponible, si no el nombre del archivo
+    name.textContent = (profile && profile.nombre) ? profile.nombre : fileName;
+  } else {
+    empty.style.display = 'flex';
+    loaded.style.display = 'none';
+  }
+}
+
+// Botón "Change CV" — reutiliza el reset de CV que ya existe en Job Search
+// (removeCvBtn) para no duplicar esa lógica.
+document.addEventListener('DOMContentLoaded', function () {
+  const changeBtn = document.getElementById('cvChangeBtn');
+  if (changeBtn) {
+    changeBtn.addEventListener('click', function () {
+      updateSidebarCvStatus(null, null);
+      const removeCvBtn = document.getElementById('removeCvBtn');
+      if (removeCvBtn) removeCvBtn.click();
+    });
+  }
+});
+
 (() => {
   'use strict';
 
@@ -332,6 +380,7 @@
       if (!response.ok) throw new Error('parse failed');
       const parsed = await response.json();
       state.cvParsed = parsed;
+      updateSidebarCvStatus(file.name, parsed);
       renderCvSummary(parsed);
       revealTargetCompaniesSection(parsed);
     } catch {
@@ -467,6 +516,7 @@
       state.cvParsed = null;
       cvInput.value = '';
       resetCvUi();
+      updateSidebarCvStatus(null, null);
       return;
     }
 
