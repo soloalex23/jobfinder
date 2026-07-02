@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { extractCvText } = require('../services/cvExtractor');
 const { analyzeATS, improveCV } = require('../services/atsResumeService');
-const { generateDocx, generatePdf } = require('../services/cvDocGenerator');
+const { generateDocx } = require('../services/cvDocGenerator');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -51,25 +51,23 @@ router.post('/improve', async (req, res) => {
 });
 
 // POST /api/resume/download
-// Convierte el HTML del CV mejorado a DOCX o PDF y lo devuelve como descarga.
+// El PDF ya no pasa por acá — se resuelve en el navegador con window.print().
+// Este endpoint solo genera el DOCX, directamente desde "data" (el CV
+// estructurado que devuelve /improve junto al HTML).
 router.post('/download', async (req, res) => {
   try {
-    const { htmlContent, format, fileName = 'CV' } = req.body || {};
-    if (!htmlContent) {
-      return res.status(400).json({ error: 'Missing htmlContent' });
+    const { data, format, fileName = 'CV' } = req.body || {};
+    if (format !== 'docx') {
+      return res.status(400).json({ error: 'Formato no soportado por este endpoint.' });
+    }
+    if (!data) {
+      return res.status(400).json({ error: 'Missing data' });
     }
 
-    if (format === 'docx') {
-      const buffer = await generateDocx(htmlContent);
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}.docx"`);
-      res.send(buffer);
-    } else {
-      const buffer = await generatePdf(htmlContent);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}.pdf"`);
-      res.send(buffer);
-    }
+    const buffer = await generateDocx(data);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}.docx"`);
+    res.send(buffer);
   } catch (err) {
     console.error('Download error:', err);
     res.status(500).json({ error: err.message });

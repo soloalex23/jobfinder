@@ -196,18 +196,38 @@ Genera SOLO un JSON válido con esta estructura (sin markdown, sin backticks):
 {
   "titulo": "${spec.titulo}",
   "descripcion": "${spec.descripcion}",
-  "html": "<HTML completo del CV>"
+  "html": "<HTML completo del CV>",
+  "data": {
+    "nombre": "<nombre completo>",
+    "titulo": "<cargo/título profesional actual o más reciente, o null>",
+    "contacto": {
+      "email": "<email o null>",
+      "telefono": "<teléfono o null>",
+      "ciudad": "<ciudad/país o null>",
+      "linkedin": "<URL o null>"
+    },
+    "resumen": "<mismo resumen profesional usado en el HTML, sin HTML ni markdown>",
+    "experiencia": [
+      { "cargo": "<cargo>", "empresa": "<empresa>", "ubicacion": "<ciudad/modalidad o null>", "fechaInicio": "<MM/YYYY o año>", "fechaFin": "<MM/YYYY, año, o \\"Actual\\">", "logros": ["<logro/responsabilidad individual, mismo contenido que en el HTML>"] }
+    ],
+    "educacion": [
+      { "titulo": "<título>", "institucion": "<institución>", "año": "<año/periodo>" }
+    ],
+    "skills": ["<habilidad>"]
+  }
 }
 
 INSTRUCCIONES:
 ${spec.instrucciones}
 
-${commonInstructions(lang)}`;
+${commonInstructions(lang)}
+
+PARA "data" — es la misma información y el mismo contenido optimizado que usaste en el HTML (mismas descripciones mejoradas, mismas keywords agregadas), pero como datos planos en ${lang}, sin HTML ni markdown. Se usa para generar el DOCX descargable con estilos reales aplicados por campo. Incluir TODA la experiencia y educación reales del candidato (no resumir ni omitir). "logros" son bullets individuales, no un párrafo. Si un dato no existe en el CV original, usar null o array vacío — nunca inventar.`;
 
   const client = getClient();
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 7000,
+    max_tokens: 9000,
     messages: [{ role: 'user', content: prompt }],
   });
 

@@ -1196,8 +1196,8 @@ document.addEventListener('DOMContentLoaded', function () {
   let rhCvText = null;
   let rhFileName = null;
   let rhAtsReport = null;
-  let rhCvVersion1Html = null;
-  let rhCvVersion2Html = null;
+  let rhCvVersion1 = null; // { html, data }
+  let rhCvVersion2 = null; // { html, data }
   let rhSelectedLang = 'es';
 
   // Colores según score
@@ -1383,8 +1383,8 @@ document.addEventListener('DOMContentLoaded', function () {
           const data = await response.json();
           if (!data.success) throw new Error(data.error);
 
-          rhCvVersion1Html = data.version1.html;
-          rhCvVersion2Html = data.version2.html;
+          rhCvVersion1 = { html: data.version1.html, data: data.version1.data };
+          rhCvVersion2 = { html: data.version2.html, data: data.version2.data };
 
           clearInterval(msgInterval2);
           document.getElementById('rhImprovingLoading').style.display = 'none';
@@ -1460,11 +1460,11 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ── RENDER VERSIONES ──
-  function renderVersions(data) {
-    document.getElementById('rhV1Title').textContent = data.version1.titulo;
-    document.getElementById('rhV1Desc').textContent = data.version1.descripcion;
-    document.getElementById('rhV2Title').textContent = data.version2.titulo;
-    document.getElementById('rhV2Desc').textContent = data.version2.descripcion;
+  function renderVersions(result) {
+    document.getElementById('rhV1Title').textContent = result.version1.titulo;
+    document.getElementById('rhV1Desc').textContent = result.version1.descripcion;
+    document.getElementById('rhV2Title').textContent = result.version2.titulo;
+    document.getElementById('rhV2Desc').textContent = result.version2.descripcion;
 
     function setIframeContent(containerId, html) {
       const container = document.getElementById(containerId);
@@ -1480,17 +1480,21 @@ document.addEventListener('DOMContentLoaded', function () {
       iframe.contentDocument.close();
     }
 
-    setIframeContent('rhV1Preview', data.version1.html);
-    setIframeContent('rhV2Preview', data.version2.html);
+    setIframeContent('rhV1Preview', result.version1.html);
+    setIframeContent('rhV2Preview', result.version2.html);
 
     document.getElementById('rhVersions').style.display = 'block';
     document.getElementById('rhVersions').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // ── DESCARGA ──
+  // PDF: se abre el HTML del CV en una ventana nueva y se dispara el diálogo
+  // de impresión del navegador (el HTML ya trae @media print) — así el PDF
+  // es una impresión exacta de la vista previa, sin depender de un generador
+  // server-side. DOCX: sí se genera en el servidor, desde el campo "data".
   window.downloadCV = async function (version, format) {
-    const html = version === 'v1' ? rhCvVersion1Html : rhCvVersion2Html;
-    if (!html) {
+    const entry = version === 'v1' ? rhCvVersion1 : rhCvVersion2;
+    if (!entry) {
       window.alert('No hay un CV mejorado listo para descargar todavía.');
       return;
     }
@@ -1498,11 +1502,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const vLabel = version === 'v1' ? 'Original' : 'JobFinder';
     const fileName = `${baseName}_${vLabel}`;
 
+    if (format === 'pdf') {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(entry.html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 500);
+      return;
+    }
+
     try {
       const response = await fetch('/api/resume/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ htmlContent: html, format, fileName }),
+        body: JSON.stringify({ htmlContent: entry.html, data: entry.data, format, fileName }),
       });
 
       if (!response.ok) throw new Error('Error generando archivo');

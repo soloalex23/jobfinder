@@ -1,84 +1,110 @@
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } = require('docx');
-const { JSDOM } = require('jsdom');
-const PDFDocument = require('pdfkit');
 
-// Recorre el HTML generado por Claude y lo aplana a una lista de bloques
-// simples ({ type, text }). docx y pdfkit consumen esta misma estructura,
-// así solo hay un lugar que interpreta el HTML. Es una conversión básica
-// (sin preservar estilos complejos del HTML) a propósito: mejor un DOCX/PDF
-// funcional y legible que uno que falle intentando replicar el diseño exacto.
-function extractStructuredContent(htmlContent) {
-  const dom = new JSDOM(htmlContent);
-  const doc = dom.window.document;
-  const blocks = [];
+// El PDF ya no se genera en el servidor — se resuelve en el navegador
+// (window.print() sobre el HTML del CV, que ya trae @media print) para
+// garantizar fidelidad visual exacta sin depender de un motor de render
+// server-side (Chromium/Puppeteer no es viable en Railway sin arriesgar el
+// mismo tipo de crash por dependencias nativas que ya tuvimos antes en este
+// proyecto con @napi-rs/canvas).
+//
+// El DOCX sí se genera acá, pero directamente desde "data" (el CV
+// estructurado que ahora devuelve Claude junto al HTML) en vez de parsear
+// HTML con jsdom — así se aplican estilos reales por campo (negritas,
+// bullets, encabezados con línea de color) de forma confiable.
 
-  function processNode(node) {
-    const tag = node.tagName ? node.tagName.toLowerCase() : '';
+const ACCENT = '4F46E5';
 
-    if (tag === 'h1') {
-      const text = node.textContent.trim();
-      if (text) blocks.push({ type: 'h1', text });
-    } else if (tag === 'h2') {
-      const text = node.textContent.trim();
-      if (text) blocks.push({ type: 'h2', text });
-    } else if (tag === 'h3') {
-      const text = node.textContent.trim();
-      if (text) blocks.push({ type: 'h3', text });
-    } else if (tag === 'p') {
-      const text = node.textContent.trim();
-      if (text) blocks.push({ type: 'p', text });
-    } else if (tag === 'li') {
-      const text = node.textContent.trim();
-      if (text) blocks.push({ type: 'li', text });
-    } else if (node.children && node.children.length > 0) {
-      Array.from(node.children).forEach(processNode);
-    }
-  }
-
-  const body = doc.querySelector('body');
-  if (body) Array.from(body.children).forEach(processNode);
-
-  return blocks;
+function line(...parts) {
+  return parts.filter(Boolean).join('  ·  ');
 }
 
-// Generar DOCX a partir del HTML — básico y legible, sin intentar preservar
-// el diseño visual exacto del HTML original.
-async function generateDocx(htmlContent) {
-  const blocks = extractStructuredContent(htmlContent);
+function sectionHeading(text) {
+  return new Paragraph({
+    text,
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 240, after: 120 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: ACCENT } },
+  });
+}
+
+async function generateDocx(data) {
+  const cv = data || {};
   const children = [];
 
-  blocks.forEach((block) => {
-    if (block.type === 'h1') {
+  children.push(new Paragraph({
+    children: [new TextRun({ text: cv.nombre || 'CV', bold: true, size: 40 })],
+    heading: HeadingLevel.HEADING_1,
+    spacing: { after: 60 },
+  }));
+
+  if (cv.titulo) {
+    children.push(new Paragraph({
+      children: [new TextRun({ text: cv.titulo, size: 24, color: ACCENT })],
+      spacing: { after: 100 },
+    }));
+  }
+
+  const contacto = cv.contacto || {};
+  const contactoLine = line(contacto.email, contacto.telefono, contacto.ciudad, contacto.linkedin);
+  if (contactoLine) {
+    children.push(new Paragraph({
+      children: [new TextRun({ text: contactoLine, size: 18, color: '6B7280' })],
+      spacing: { after: 200 },
+    }));
+  }
+
+  if (cv.resumen) {
+    children.push(sectionHeading('Perfil Profesional'));
+    children.push(new Paragraph({
+      children: [new TextRun({ text: cv.resumen, size: 22 })],
+      spacing: { after: 100 },
+    }));
+  }
+
+  if (Array.isArray(cv.experiencia) && cv.experiencia.length) {
+    children.push(sectionHeading('Experiencia'));
+    cv.experiencia.forEach((exp) => {
       children.push(new Paragraph({
-        text: block.text,
-        heading: HeadingLevel.HEADING_1,
-        spacing: { before: 240, after: 120 },
+        children: [
+          new TextRun({ text: exp.cargo || '', bold: true, size: 22 }),
+          new TextRun({ text: exp.empresa ? `  —  ${exp.empresa}` : '', size: 22 }),
+        ],
+        spacing: { before: 160, after: 20 },
       }));
-    } else if (block.type === 'h2') {
+      const sub = line(exp.ubicacion, [exp.fechaInicio, exp.fechaFin].filter(Boolean).join(' – '));
+      if (sub) {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: sub, size: 20, color: '6B7280', italics: true })],
+          spacing: { after: 60 },
+        }));
+      }
+      (exp.logros || []).forEach((logro) => {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: `•  ${logro}`, size: 21 })],
+          spacing: { after: 40 },
+          indent: { left: 300 },
+        }));
+      });
+    });
+  }
+
+  if (Array.isArray(cv.educacion) && cv.educacion.length) {
+    children.push(sectionHeading('Educación'));
+    cv.educacion.forEach((ed) => {
       children.push(new Paragraph({
-        text: block.text,
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 200, after: 100 },
-        border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: '4F46E5' } },
-      }));
-    } else if (block.type === 'h3') {
-      children.push(new Paragraph({
-        children: [new TextRun({ text: block.text, bold: true, size: 24 })],
-        spacing: { before: 160, after: 80 },
-      }));
-    } else if (block.type === 'p') {
-      children.push(new Paragraph({
-        children: [new TextRun({ text: block.text, size: 22 })],
-        spacing: { after: 80 },
-      }));
-    } else if (block.type === 'li') {
-      children.push(new Paragraph({
-        children: [new TextRun({ text: `• ${block.text}`, size: 22 })],
+        children: [new TextRun({ text: line(ed.titulo, ed.institucion, ed.año), size: 21 })],
         spacing: { after: 60 },
-        indent: { left: 360 },
       }));
-    }
-  });
+    });
+  }
+
+  if (Array.isArray(cv.skills) && cv.skills.length) {
+    children.push(sectionHeading('Habilidades'));
+    children.push(new Paragraph({
+      children: [new TextRun({ text: cv.skills.join('   •   '), size: 21 })],
+      spacing: { after: 100 },
+    }));
+  }
 
   if (children.length === 0) {
     children.push(new Paragraph({ text: 'CV Content' }));
@@ -88,43 +114,4 @@ async function generateDocx(htmlContent) {
   return Packer.toBuffer(document);
 }
 
-// Generar PDF a partir del HTML — pdfkit es JS puro (sin Chromium/binarios
-// nativos), evita el riesgo de que el generador de PDF rompa el proceso en
-// Railway como ya pasó antes con dependencias nativas en este proyecto.
-function generatePdf(htmlContent) {
-  const blocks = extractStructuredContent(htmlContent);
-
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-    const chunks = [];
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
-
-    if (blocks.length === 0) {
-      doc.fontSize(12).text('CV Content');
-    }
-
-    blocks.forEach((block) => {
-      if (block.type === 'h1') {
-        doc.moveDown(0.6).fontSize(20).font('Helvetica-Bold').fillColor('#1E1B4B').text(block.text);
-      } else if (block.type === 'h2') {
-        doc.moveDown(0.8).fontSize(14).font('Helvetica-Bold').fillColor('#4F46E5').text(block.text);
-        doc.moveTo(doc.x, doc.y + 2).lineTo(doc.page.width - doc.page.margins.right, doc.y + 2)
-          .strokeColor('#E5E7EB').stroke();
-        doc.moveDown(0.3);
-      } else if (block.type === 'h3') {
-        doc.moveDown(0.4).fontSize(12).font('Helvetica-Bold').fillColor('#111827').text(block.text);
-      } else if (block.type === 'p') {
-        doc.moveDown(0.2).fontSize(10).font('Helvetica').fillColor('#374151').text(block.text, { align: 'left' });
-      } else if (block.type === 'li') {
-        doc.moveDown(0.1).fontSize(10).font('Helvetica').fillColor('#374151')
-          .text(`•  ${block.text}`, { indent: 12 });
-      }
-    });
-
-    doc.end();
-  });
-}
-
-module.exports = { generateDocx, generatePdf };
+module.exports = { generateDocx };
