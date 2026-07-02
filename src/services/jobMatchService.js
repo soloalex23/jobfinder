@@ -25,7 +25,9 @@ function langLabel(language) {
 }
 
 function langInstructionLine(language) {
-  return language === 'en' ? 'Write everything in English.' : 'Escribe todo en Español.';
+  return language === 'en'
+    ? 'Write everything in English.'
+    : 'Escribe todo en español neutro/latinoamericano estándar, sin modismos regionales (evita el voseo — no uses "compará", "generá", "tenés"; usa "compara", "genera", "tienes").';
 }
 
 // ─── ANÁLISIS DE COMPATIBILIDAD (CV vs Job Description) ────────────────────

@@ -1,5 +1,5 @@
 const { normalize, significantWords } = require('./textUtils');
-const { resolveCountryCode } = require('./country');
+const { resolveCountryCode, getCountryAliases } = require('./country');
 
 const COLOMBIA_LOCATION_WORDS = [
   'colombia', 'bogota', 'medellin', 'cali', 'barranquilla', 'cartagena',
@@ -9,18 +9,45 @@ const COLOMBIA_LOCATION_WORDS = [
   'remoto', 'remote', 'hibrido',
 ];
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Coincidencia de palabra completa, no de substring — un alias corto como
+// "us" o "cali" no debe matchear dentro de "Düsseldorf" o "California".
+function matchesWholeWord(normalizedHaystack, word) {
+  const normWord = normalize(word).trim();
+  if (!normWord) return false;
+  return new RegExp(`\\b${escapeRegex(normWord)}\\b`, 'i').test(normalizedHaystack);
+}
+
 function locationMentionsColombia(location) {
   if (!location) return false;
   const norm = normalize(location);
-  return COLOMBIA_LOCATION_WORDS.some((word) => norm.includes(normalize(word)));
+  return COLOMBIA_LOCATION_WORDS.some((word) => matchesWholeWord(norm, word));
 }
 
-// 1) Si el país es Colombia, descarta resultados cuya ubicación no la
-//    mencione (ciudad colombiana, "Colombia", remoto/híbrido). Las fuentes
-//    "Remoto Global" siempre pasan este filtro.
+// Si la ubicación menciona el país seleccionado (en español o inglés, según
+// los alias conocidos en country.js), o — para Colombia específicamente —
+// alguna de sus ciudades principales.
+function locationMentionsCountry(location, country) {
+  if (!location) return false;
+  const code = resolveCountryCode(country);
+  if (code === 'co') return locationMentionsColombia(location);
+
+  const norm = normalize(location);
+  const aliases = getCountryAliases(code);
+  if (!aliases.length) aliases.push(country.trim().toLowerCase());
+  return aliases.some((alias) => matchesWholeWord(norm, alias));
+}
+
+// 1) Si se seleccionó un país (cualquiera, no solo Colombia), descarta
+//    resultados cuya ubicación no lo mencione. Las fuentes "Remoto Global"
+//    siempre pasan este filtro — un trabajo remoto no siempre menciona un
+//    país específico en su ubicación.
 function filterByCountry(jobs, country) {
-  if (resolveCountryCode(country) !== 'co') return jobs;
-  return jobs.filter((job) => job.source === 'Remoto Global' || locationMentionsColombia(job.location));
+  if (!country) return jobs;
+  return jobs.filter((job) => job.source === 'Remoto Global' || locationMentionsCountry(job.location, country));
 }
 
 // 2) Descarta vacantes cuyo título+descripción no contenga suficientes
@@ -80,4 +107,4 @@ function applyRelevanceFilters(jobs, {
   return filtered;
 }
 
-module.exports = { applyRelevanceFilters, locationMentionsColombia };
+module.exports = { applyRelevanceFilters, locationMentionsColombia, locationMentionsCountry };

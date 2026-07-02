@@ -4,7 +4,8 @@ const config = require('../config');
 const MODEL = 'claude-sonnet-4-6';
 
 const SYSTEM_PROMPT = 'Eres un traductor especializado en terminología laboral y de recursos humanos. '
-  + 'Devuelves SOLO JSON válido sin explicaciones ni markdown.';
+  + 'Devuelves SOLO JSON válido sin explicaciones ni markdown. '
+  + 'Las traducciones al español deben usar español neutro/latinoamericano estándar, sin modismos regionales ni voseo.';
 
 function buildUserPrompt({ role, keywords, skills, industry }) {
   const roleText = role || 'no especificado';
@@ -14,6 +15,8 @@ function buildUserPrompt({ role, keywords, skills, industry }) {
 
   return `Traduce este perfil de búsqueda de empleo al español Y al inglés.
 Si un campo ya está en uno de los idiomas, mantenlo igual en ese idioma y tradúcelo al otro.
+
+Términos del ámbito académico/investigación (ej. "investigación", "docencia", "académico", "postdoctoral", "profesor", "researcher", "faculty", "postdoc") deben preservarse y traducirse correctamente igual que cualquier otro término del perfil — no son ruido a descartar.
 
 Perfil:
 - Rol: ${roleText}

@@ -1672,11 +1672,6 @@ body {
   color: #4F46E5;
 }
 
-.rh-dl-pdf {
-  background: #FEF2F2;
-  color: #DC2626;
-}
-
 .rh-version-preview {
   padding: 24px;
   background: white;
@@ -1815,4 +1810,61 @@ body {
 @media (max-width: 640px) {
   .jm-form-footer { flex-direction: column; align-items: stretch; }
   .jm-doc-actions { flex-direction: column; }
+}
+
+/* =============================================
+   PANEL DE FILTROS DE RESULTADOS
+   ============================================= */
+
+.results-filters {
+  margin-bottom: 24px;
+  padding: 20px;
+}
+
+.rf-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.rf-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.rf-field input[type="text"] {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.rf-field-score input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  margin-top: 4px;
+}
+
+.rf-clear-btn {
+  white-space: nowrap;
+  padding-bottom: 9px;
+}
+
+.rf-summary {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .rf-row { grid-template-columns: repeat(2, 1fr); }
+  .rf-clear-btn { grid-column: 1 / -1; text-align: left; }
+}
+
+@media (max-width: 480px) {
+  .rf-row { grid-template-columns: 1fr; }
 }

@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
     remotive: { label: 'Remotive', color: '#EA580C' },
     themuse: { label: 'The Muse', color: '#7C3AED' },
     arbeitnow: { label: 'Arbeitnow', color: '#374151' },
+    adzuna: { label: 'Academia (Adzuna)', color: '#0D9488' },
   };
 
   // ---------- Estado ----------
@@ -88,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function () {
     cvFile: null,
     cvParsed: null, // resultado de /api/cv/parse
     keywords: [],
-    sources: new Set(['Computrabajo', 'Indeed Colombia', 'ElEmpleo', 'Remotive', 'The Muse', 'Arbeitnow']),
+    sources: new Set(['Computrabajo', 'Indeed Colombia', 'ElEmpleo', 'Remotive', 'The Muse', 'Arbeitnow', 'Academia (Adzuna)']),
     seniority: new Set(),
     modality: new Set(),
     industries: new Set(),
@@ -186,12 +187,23 @@ document.addEventListener('DOMContentLoaded', function () {
   const loadingTitle = document.getElementById('loadingTitle');
   const loadingSubtitle = document.getElementById('loadingSubtitle');
 
+  const paisSeleccionadoTitle = document.getElementById('paisSeleccionadoTitle');
   const colombiaGrid = document.getElementById('colombiaGrid');
   const colombiaCount = document.getElementById('colombiaCount');
   const colombiaEmpty = document.getElementById('colombiaEmpty');
   const remoteGrid = document.getElementById('remoteGrid');
   const remoteCount = document.getElementById('remoteCount');
   const remoteEmpty = document.getElementById('remoteEmpty');
+
+  const rfScoreMin = document.getElementById('rfScoreMin');
+  const rfScoreMax = document.getElementById('rfScoreMax');
+  const rfScoreMinValue = document.getElementById('rfScoreMinValue');
+  const rfScoreMaxValue = document.getElementById('rfScoreMaxValue');
+  const rfLocation = document.getElementById('rfLocation');
+  const rfCompany = document.getElementById('rfCompany');
+  const rfRole = document.getElementById('rfRole');
+  const rfClearBtn = document.getElementById('rfClearBtn');
+  const rfSummary = document.getElementById('rfSummary');
 
   const companiesSkeleton = document.getElementById('companiesSkeleton');
   const companiesNacionales = document.getElementById('companiesNacionales');
@@ -908,6 +920,82 @@ document.addEventListener('DOMContentLoaded', function () {
     jobs.forEach((job) => grid.appendChild(renderJobCard(job)));
   }
 
+  // ---------- Filtros de resultados (client-side, sin nueva llamada al backend) ----------
+  // Guarda el array completo que trajo el backend; los filtros se aplican
+  // sobre esta copia y nunca la mutan, así "Limpiar filtros" siempre puede
+  // volver al set completo.
+  let allColombiaJobs = [];
+  let allRemoteJobs = [];
+  let currentPaisSeleccionado = null;
+
+  window.currentFilters = { scoreMin: 0, scoreMax: 100, location: '', company: '', role: '' };
+
+  function normalizeFilterText(str) {
+    return (str || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function jobMatchesFilters(job, f) {
+    if (job.compatibilityScore < f.scoreMin || job.compatibilityScore > f.scoreMax) return false;
+    if (f.location && !normalizeFilterText(job.location).includes(normalizeFilterText(f.location))) return false;
+    if (f.company && !normalizeFilterText(job.company).includes(normalizeFilterText(f.company))) return false;
+    if (f.role && !normalizeFilterText(job.title).includes(normalizeFilterText(f.role))) return false;
+    return true;
+  }
+
+  function applyResultFilters() {
+    const f = window.currentFilters;
+    const filteredColombia = allColombiaJobs.filter((job) => jobMatchesFilters(job, f));
+    const filteredRemote = allRemoteJobs.filter((job) => jobMatchesFilters(job, f));
+
+    renderJobSection(filteredColombia, colombiaGrid, colombiaCount, colombiaEmpty,
+      (n) => `${n} vacante${n === 1 ? '' : 's'} encontrada${n === 1 ? '' : 's'}${currentPaisSeleccionado ? ` en ${currentPaisSeleccionado}` : ' en Colombia'}`);
+    renderJobSection(filteredRemote, remoteGrid, remoteCount, remoteEmpty,
+      (n) => `${n} posicion${n === 1 ? '' : 'es'} remota${n === 1 ? '' : 's'}`);
+
+    const totalShown = filteredColombia.length + filteredRemote.length;
+    const totalAll = allColombiaJobs.length + allRemoteJobs.length;
+    rfSummary.textContent = `Mostrando ${totalShown} de ${totalAll} vacante${totalAll === 1 ? '' : 's'}`;
+    resultCounterNumber.textContent = totalShown;
+  }
+
+  function resetResultFilters() {
+    window.currentFilters = { scoreMin: 0, scoreMax: 100, location: '', company: '', role: '' };
+    rfScoreMin.value = 0;
+    rfScoreMax.value = 100;
+    rfScoreMinValue.textContent = '0%';
+    rfScoreMaxValue.textContent = '100%';
+    rfLocation.value = '';
+    rfCompany.value = '';
+    rfRole.value = '';
+  }
+
+  rfScoreMin.addEventListener('input', () => {
+    window.currentFilters.scoreMin = Number(rfScoreMin.value);
+    rfScoreMinValue.textContent = `${rfScoreMin.value}%`;
+    applyResultFilters();
+  });
+  rfScoreMax.addEventListener('input', () => {
+    window.currentFilters.scoreMax = Number(rfScoreMax.value);
+    rfScoreMaxValue.textContent = `${rfScoreMax.value}%`;
+    applyResultFilters();
+  });
+  rfLocation.addEventListener('input', () => {
+    window.currentFilters.location = rfLocation.value.trim();
+    applyResultFilters();
+  });
+  rfCompany.addEventListener('input', () => {
+    window.currentFilters.company = rfCompany.value.trim();
+    applyResultFilters();
+  });
+  rfRole.addEventListener('input', () => {
+    window.currentFilters.role = rfRole.value.trim();
+    applyResultFilters();
+  });
+  rfClearBtn.addEventListener('click', () => {
+    resetResultFilters();
+    applyResultFilters();
+  });
+
   // ---------- Render de empresas ----------
   function renderCompanyCard(company) {
     const node = companyCardTemplate.content.firstElementChild.cloneNode(true);
@@ -1156,15 +1244,13 @@ document.addEventListener('DOMContentLoaded', function () {
       const data = await fetchJobs();
       stopLoadingMessages();
 
-      const colombiaJobs = data.colombia?.jobs || [];
-      const remoteJobs = data.remotoGlobal?.jobs || [];
+      currentPaisSeleccionado = data.paisSeleccionado?.pais || null;
+      allColombiaJobs = data.paisSeleccionado?.jobs || [];
+      allRemoteJobs = data.global?.jobs || [];
 
-      renderJobSection(colombiaJobs, colombiaGrid, colombiaCount, colombiaEmpty,
-        (n) => `${n} vacante${n === 1 ? '' : 's'} encontrada${n === 1 ? '' : 's'} en Colombia`);
-      renderJobSection(remoteJobs, remoteGrid, remoteCount, remoteEmpty,
-        (n) => `${n} posicion${n === 1 ? '' : 'es'} remota${n === 1 ? '' : 's'}`);
-
-      resultCounterNumber.textContent = colombiaJobs.length + remoteJobs.length;
+      paisSeleccionadoTitle.textContent = currentPaisSeleccionado ? `Vacantes en ${currentPaisSeleccionado}` : 'Vacantes en Colombia';
+      resetResultFilters();
+      applyResultFilters();
       showScreen('results');
     } catch {
       stopLoadingMessages();
@@ -1517,11 +1603,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ── DESCARGA ──
-  // PDF: se abre el HTML del CV en una ventana nueva y se dispara el diálogo
-  // de impresión del navegador (el HTML ya trae @media print) — así el PDF
-  // es una impresión exacta de la vista previa, sin depender de un generador
-  // server-side. DOCX: sí se genera en el servidor, desde el campo "data".
-  window.downloadCV = async function (version, format) {
+  // Solo DOCX (generado en el servidor desde el campo "data") — la opción de
+  // PDF vía window.print() se quitó por fallas pendientes de Fase 2.
+  window.downloadCV = async function (version) {
+    const format = 'docx';
     const entry = version === 'v1' ? rhCvVersion1 : rhCvVersion2;
     if (!entry) {
       window.alert('No hay un CV mejorado listo para descargar todavía.');
@@ -1530,19 +1615,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const baseName = (rhFileName || 'CV').replace(/\.[^.]+$/, '');
     const vLabel = version === 'v1' ? 'Original' : 'JobFinder';
     const fileName = `${baseName}_${vLabel}`;
-
-    if (format === 'pdf') {
-      const blob = new Blob([entry.html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const printWindow = window.open(url, '_blank');
-      printWindow.addEventListener('load', function () {
-        setTimeout(() => {
-          printWindow.print();
-          URL.revokeObjectURL(url);
-        }, 800);
-      });
-      return;
-    }
 
     try {
       const response = await fetch('/api/resume/download', {
@@ -1802,7 +1874,7 @@ document.addEventListener('DOMContentLoaded', function () {
     coverLetterBtn.addEventListener('click', async function () {
       const companyName = document.getElementById('jmCompanyName').value.trim();
       if (!companyName) {
-        window.alert('Confirmá el nombre de la empresa antes de generar la carta.');
+        window.alert('Confirma el nombre de la empresa antes de generar la carta.');
         return;
       }
 

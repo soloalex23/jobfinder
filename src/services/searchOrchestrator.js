@@ -4,6 +4,7 @@ const { searchElEmpleo } = require('./elempleoClient');
 const { searchRemotiveJobs } = require('./remotiveClient');
 const { searchMuseJobs } = require('./themuseClient');
 const { searchArbeitnowJobs } = require('./arbeitnowClient');
+const { searchAdzunaJobs } = require('./adzunaClient');
 const { inferSeniority } = require('../utils/seniority');
 const { delay } = require('../utils/scrapeUtils');
 
@@ -14,6 +15,7 @@ const SOURCE_KEYS = {
   Remotive: 'remotive',
   Arbeitnow: 'arbeitnow',
   'The Muse': 'themuse',
+  'Academia (Adzuna)': 'adzuna',
 };
 const ALL_SOURCE_KEYS = Object.values(SOURCE_KEYS);
 
@@ -55,10 +57,10 @@ async function searchColombiaSources(queryEs, queryEn, enabled) {
   return { results, sourcesUsed, sourcesFailed };
 }
 
-// D/E/F (Remotive, The Muse, Arbeitnow): query_en primaria, query_es
-// secundaria. Ambas se piden en paralelo por ser APIs JSON sin riesgo de
-// bloqueo por rate limiting agresivo.
-async function searchGlobalSources(queryEs, queryEn, enabled, { modality, contractType }) {
+// D/E/F/G (Remotive, The Muse, Arbeitnow, Adzuna-Academia): query_en
+// primaria, query_es secundaria. Todas se piden en paralelo por ser APIs
+// JSON sin riesgo de bloqueo por rate limiting agresivo.
+async function searchGlobalSources(queryEs, queryEn, enabled, { modality, contractType, country }) {
   const specs = [];
   if (enabled.has('remotive') && modality?.trim().toLowerCase() !== 'presencial') {
     specs.push({ key: 'remotive', fn: (q) => searchRemotiveJobs({ keywords: q, contractType, limit: 20 }) });
@@ -68,6 +70,9 @@ async function searchGlobalSources(queryEs, queryEn, enabled, { modality, contra
   }
   if (enabled.has('themuse')) {
     specs.push({ key: 'themuse', fn: (q) => searchMuseJobs({ keywords: q, page: 1 }) });
+  }
+  if (enabled.has('adzuna')) {
+    specs.push({ key: 'adzuna', fn: (q) => searchAdzunaJobs({ keywords: q, country }) });
   }
 
   const tasks = [];
@@ -99,7 +104,7 @@ async function searchGlobalSources(queryEs, queryEn, enabled, { modality, contra
 }
 
 async function searchAllSources({
-  queryEs, queryEn, colombiaQueryEs, colombiaQueryEn, modality, contractType, sources,
+  queryEs, queryEn, colombiaQueryEs, colombiaQueryEn, modality, contractType, country, sources,
 }) {
   const requested = Array.isArray(sources) && sources.length
     ? sources.map((s) => SOURCE_KEYS[s] || s)
@@ -108,7 +113,7 @@ async function searchAllSources({
 
   const [colombia, global] = await Promise.all([
     searchColombiaSources(colombiaQueryEs || queryEs, colombiaQueryEn || queryEn, enabled),
-    searchGlobalSources(queryEs, queryEn, enabled, { modality, contractType }),
+    searchGlobalSources(queryEs, queryEn, enabled, { modality, contractType, country }),
   ]);
 
   let results = [...colombia.results, ...global.results];

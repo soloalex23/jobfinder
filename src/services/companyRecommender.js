@@ -6,7 +6,8 @@ const MODEL = 'claude-sonnet-4-6';
 
 const SYSTEM_PROMPT = 'Eres un experto en mercado laboral colombiano e internacional. '
   + 'Conoces qué sistema de tracking de candidatos (ATS) usa cada empresa. '
-  + 'Devuelves SOLO JSON válido sin markdown ni explicaciones.';
+  + 'Devuelves SOLO JSON válido sin markdown ni explicaciones. '
+  + 'Todo texto en español debe estar en español neutro/latinoamericano estándar, sin modismos regionales ni voseo.';
 
 function buildUserPrompt({
   cargoActual, industria, industrias, habilidades, empresasPrevias, experienciaTotalAnios,
@@ -37,6 +38,8 @@ Para cada empresa indica:
 - Si no se sabe: tipo='linkedin'
 
 Prioriza empresas que genuinamente contratan perfiles similares y que tengan portales de carreras activos.
+
+Si el perfil es académico o de investigación (cargo, industria o habilidades relacionadas con docencia, investigación, ciencia, postdoctorado, faculty, etc.), incluye universidades, centros de investigación, institutos científicos y ONGs de investigación entre las 20 sugerencias — no te limites a empresas corporativas/industria.
 
 Devuelve exactamente:
 {

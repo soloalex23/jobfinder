@@ -138,6 +138,8 @@ LEGIBILIDAD ATS (5%):
 - ¿Las secciones tienen headers claros?
 - ¿El texto es seleccionable (no imagen)?
 
+Responde siempre en español neutro/latinoamericano estándar, sin modismos regionales (evita el voseo — no uses "revisá", "fijate", "tenés"; usa "revisa", "fíjate", "tienes").
+
 CV A ANALIZAR:
 ---
 ${cvText}
@@ -178,7 +180,9 @@ function commonInstructions(lang) {
 
 async function generateVersion(cvText, atsReport, language, spec) {
   const lang = language === 'en' ? 'English' : 'Español';
-  const langInstruction = language === 'en' ? 'Write everything in English.' : 'Escribe todo en Español.';
+  const langInstruction = language === 'en'
+    ? 'Write everything in English.'
+    : 'Escribe todo en español neutro/latinoamericano estándar, sin modismos regionales (evita el voseo — no uses "revisá", "generá", "tenés"; usa "revisa", "genera", "tienes").';
 
   const prompt = `Eres un experto en redacción de CVs de alto impacto y ATS optimization.
 

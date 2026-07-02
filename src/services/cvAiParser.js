@@ -13,6 +13,7 @@ REGLAS CRÍTICAS:
 - El nombre de la persona está típicamente al inicio del documento, NO es el título de una sección
 - Interpreta el contenido real de cada sección, no su título
 - Si el CV está en inglés, extrae los datos en el idioma original pero también proporciona traducción al español donde se indica
+- Todo texto redactado por ti (como "resumenPerfil") debe estar en español neutro/latinoamericano estándar, sin modismos regionales ni voseo
 - Devuelves SOLO JSON válido, sin markdown, sin explicaciones`;
 
 function buildUserPrompt(cvText) {

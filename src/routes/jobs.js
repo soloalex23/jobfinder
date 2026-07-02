@@ -2,7 +2,7 @@ const express = require('express');
 const { searchAllSources } = require('../services/searchOrchestrator');
 const { scoreJobs } = require('../services/scoring');
 const { translateProfileToBoths } = require('../services/translator');
-const { applyRelevanceFilters } = require('../utils/relevanceFilter');
+const { applyRelevanceFilters, locationMentionsCountry } = require('../utils/relevanceFilter');
 const { dedupeSimilarJobs } = require('../utils/dedupe');
 const { buildQuery, buildScraperQuery } = require('../utils/query');
 
@@ -91,6 +91,7 @@ router.post('/search', async (req, res) => {
       colombiaQueryEn,
       modality: modalityForSources,
       contractType,
+      country,
       sources,
     });
 
@@ -114,8 +115,25 @@ router.post('/search', async (req, res) => {
 
     jobs = dedupeSimilarJobs(jobs).sort((a, b) => b.compatibilityScore - a.compatibilityScore);
 
-    const colombiaJobs = jobs.filter((job) => job.source !== 'Remoto Global');
-    const remotoGlobalJobs = jobs.filter((job) => job.source === 'Remoto Global');
+    // Coincidencias muy bajas no aportan valor y solo generan ruido en los
+    // resultados — se descartan del todo, no solo se ocultan visualmente.
+    jobs = jobs.filter((job) => job.compatibilityScore >= 20);
+
+    // Si el usuario seleccionó un país, ese bloque agrupa las vacantes cuya
+    // ubicación lo menciona (de cualquier fuente). Sin país seleccionado se
+    // mantiene el comportamiento histórico: separar por fuente (scrapers de
+    // Colombia vs. fuentes globales), que es lo que existía antes de que se
+    // pudiera elegir cualquier país.
+    const COLOMBIA_SCRAPER_SOURCES = new Set(['Computrabajo', 'Indeed Colombia', 'ElEmpleo']);
+    let paisSeleccionadoJobs;
+    let globalJobs;
+    if (country) {
+      paisSeleccionadoJobs = jobs.filter((job) => locationMentionsCountry(job.location, country));
+      globalJobs = jobs.filter((job) => !locationMentionsCountry(job.location, country));
+    } else {
+      paisSeleccionadoJobs = jobs.filter((job) => COLOMBIA_SCRAPER_SOURCES.has(job.source));
+      globalJobs = jobs.filter((job) => !COLOMBIA_SCRAPER_SOURCES.has(job.source));
+    }
 
     res.json({
       queryEs,
@@ -124,8 +142,8 @@ router.post('/search', async (req, res) => {
       colombiaQueryEn,
       sourcesUsed,
       sourcesFailed,
-      colombia: { jobs: colombiaJobs, count: colombiaJobs.length },
-      remotoGlobal: { jobs: remotoGlobalJobs, count: remotoGlobalJobs.length },
+      paisSeleccionado: { pais: country || null, jobs: paisSeleccionadoJobs, count: paisSeleccionadoJobs.length },
+      global: { jobs: globalJobs, count: globalJobs.length },
     });
   } catch (err) {
     const status = err.response?.status || 500;

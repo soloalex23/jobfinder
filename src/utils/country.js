@@ -41,4 +41,11 @@ function isAdzunaSupported(countryCode) {
   return ADZUNA_SUPPORTED_CODES.has(countryCode);
 }
 
-module.exports = { resolveCountryCode, isAdzunaSupported };
+// Todos los alias (ES/EN) que resuelven a un código de país dado — útil para
+// buscar el nombre del país en texto libre (ej. la ubicación de una vacante)
+// sin importar en qué idioma esté escrito.
+function getCountryAliases(code) {
+  return Object.keys(COUNTRY_CODE_MAP).filter((key) => COUNTRY_CODE_MAP[key] === code);
+}
+
+module.exports = { resolveCountryCode, isAdzunaSupported, getCountryAliases };

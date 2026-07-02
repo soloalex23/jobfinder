@@ -319,6 +319,7 @@
                   <label class="multiselect-option"><input type="checkbox" value="Farmacéutica"><span>Farmacéutica</span></label>
                   <label class="multiselect-option"><input type="checkbox" value="Medio Ambiente"><span>Medio Ambiente</span></label>
                   <label class="multiselect-option"><input type="checkbox" value="Investigación y Desarrollo"><span>Investigación y Desarrollo</span></label>
+                  <label class="multiselect-option"><input type="checkbox" value="Academia e Investigación Científica"><span>Academia e Investigación Científica</span></label>
                 </div>
                 <div class="multiselect-group">
                   <p class="multiselect-group-label">Industria y Operaciones</p>
@@ -381,6 +382,7 @@
           <button type="button" class="source-chip active" data-source="Remotive">🟠 Remotive</button>
           <button type="button" class="source-chip active" data-source="The Muse">🟣 The Muse</button>
           <button type="button" class="source-chip active" data-source="Arbeitnow">⚫ Arbeitnow</button>
+          <button type="button" class="source-chip active" data-source="Academia (Adzuna)">🎓 Academia (Adzuna)</button>
         </div>
         <a id="linkedinBtn" class="btn-linkedin" href="#" target="_blank" rel="noopener noreferrer">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.6 0 4.27 2.37 4.27 5.46zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.56V9h3.56z"/></svg>
@@ -409,11 +411,38 @@
   <!-- PANTALLA 3: resultados -->
   <section id="screen-results" class="screen" hidden>
 
+    <div class="results-filters card" id="resultsFilters">
+      <div class="rf-row">
+        <div class="rf-field rf-field-score">
+          <label for="rfScoreMin">Coincidencia mínima: <span id="rfScoreMinValue">0%</span></label>
+          <input type="range" id="rfScoreMin" min="0" max="100" value="0">
+        </div>
+        <div class="rf-field rf-field-score">
+          <label for="rfScoreMax">Coincidencia máxima: <span id="rfScoreMaxValue">100%</span></label>
+          <input type="range" id="rfScoreMax" min="0" max="100" value="100">
+        </div>
+        <div class="rf-field">
+          <label for="rfLocation">Ubicación</label>
+          <input type="text" id="rfLocation" placeholder="Ciudad, país, remoto...">
+        </div>
+        <div class="rf-field">
+          <label for="rfCompany">Empresa</label>
+          <input type="text" id="rfCompany" placeholder="Nombre de la empresa">
+        </div>
+        <div class="rf-field">
+          <label for="rfRole">Rol / título</label>
+          <input type="text" id="rfRole" placeholder="Ej. desarrollador">
+        </div>
+        <button type="button" class="link-btn rf-clear-btn" id="rfClearBtn">Limpiar filtros</button>
+      </div>
+      <p class="rf-summary" id="rfSummary">Mostrando 0 de 0 vacantes</p>
+    </div>
+
     <div class="results-section-header">
-      <h2>Vacantes en Colombia</h2>
+      <h2 id="paisSeleccionadoTitle">Vacantes en Colombia</h2>
       <p class="results-count" id="colombiaCount">0 vacantes encontradas en Colombia</p>
     </div>
-    <p id="colombiaEmpty" class="results-empty" hidden>No encontramos vacantes en Colombia con estos filtros.</p>
+    <p id="colombiaEmpty" class="results-empty" hidden>No encontramos vacantes con estos filtros.</p>
     <div id="colombiaGrid" class="results-grid"></div>
 
     <div class="results-section-header results-section-header-spaced">
@@ -602,8 +631,7 @@
                 <p class="rh-version-desc" id="rhV1Desc">—</p>
               </div>
               <div class="rh-version-downloads">
-                <button class="rh-dl-btn rh-dl-docx" onclick="downloadCV('v1', 'docx')">⬇ DOCX</button>
-                <button class="rh-dl-btn rh-dl-pdf" onclick="downloadCV('v1', 'pdf')">⬇ PDF</button>
+                <button class="rh-dl-btn rh-dl-docx" onclick="downloadCV('v1')">⬇ DOCX</button>
               </div>
             </div>
             <div class="rh-version-preview" id="rhV1Preview"></div>
@@ -617,8 +645,7 @@
                 <p class="rh-version-desc" id="rhV2Desc">—</p>
               </div>
               <div class="rh-version-downloads">
-                <button class="rh-dl-btn rh-dl-docx" onclick="downloadCV('v2', 'docx')">⬇ DOCX</button>
-                <button class="rh-dl-btn rh-dl-pdf" onclick="downloadCV('v2', 'pdf')">⬇ PDF</button>
+                <button class="rh-dl-btn rh-dl-docx" onclick="downloadCV('v2')">⬇ DOCX</button>
               </div>
             </div>
             <div class="rh-version-preview" id="rhV2Preview"></div>
@@ -635,7 +662,7 @@
         <!-- HEADER -->
         <div class="jm-header">
           <h1 class="jm-title">Job Match</h1>
-          <p class="jm-subtitle">Compará tu CV contra una vacante específica y generá un CV ajustado y una carta de presentación</p>
+          <p class="jm-subtitle">Compara tu CV con una vacante específica y genera un CV ajustado y una carta de presentación</p>
         </div>
 
         <!-- FORM -->
@@ -731,7 +758,7 @@
           <div class="rh-improve-card">
             <div class="rh-improve-header">
               <h2 class="rh-improve-title">✨ Generar Documentos</h2>
-              <p class="rh-improve-desc">Ajustá tu CV a esta vacante o generá una carta de presentación. Confirmá el nombre de la empresa (se detecta automáticamente si aparece en la JD):</p>
+              <p class="rh-improve-desc">Ajusta tu CV a esta vacante o genera una carta de presentación. Confirma el nombre de la empresa (se detecta automáticamente si aparece en la JD):</p>
             </div>
             <div class="field">
               <label class="jm-doc-lang-label">Idioma de salida</label>
