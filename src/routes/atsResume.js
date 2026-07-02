@@ -33,14 +33,16 @@ router.post('/ats-analyze', upload.single('cv'), async (req, res) => {
 });
 
 // POST /api/resume/improve
+// Genera las dos versiones en paralelo (una llamada a Claude por versión)
+// para no acercarse al timeout del fetch del frontend.
 router.post('/improve', async (req, res) => {
   try {
-    const { cvText, atsReport, language, fileName } = req.body || {};
+    const { cvText, atsReport, language } = req.body || {};
     if (!cvText || !atsReport) {
       return res.status(400).json({ error: 'Missing cvText or atsReport' });
     }
 
-    const result = await improveCV(cvText, atsReport, language || 'es', fileName || 'CV');
+    const result = await improveCV(cvText, atsReport, language || 'es');
     res.json({ success: true, ...result });
   } catch (err) {
     console.error('Improve CV error:', err);
@@ -49,23 +51,21 @@ router.post('/improve', async (req, res) => {
 });
 
 // POST /api/resume/download
-// Genera el CV mejorado (DOCX o PDF) directamente desde el CV estructurado
-// que devolvió /improve, aplicando estilos reales por campo — no se parsea
-// HTML, así el documento sí queda formateado.
+// Convierte el HTML del CV mejorado a DOCX o PDF y lo devuelve como descarga.
 router.post('/download', async (req, res) => {
   try {
-    const { cvEstructurado, format, fileName = 'CV', styleVariant = 'v2' } = req.body || {};
-    if (!cvEstructurado) {
-      return res.status(400).json({ error: 'Missing cvEstructurado' });
+    const { htmlContent, format, fileName = 'CV' } = req.body || {};
+    if (!htmlContent) {
+      return res.status(400).json({ error: 'Missing htmlContent' });
     }
 
     if (format === 'docx') {
-      const buffer = await generateDocx(cvEstructurado, styleVariant);
+      const buffer = await generateDocx(htmlContent);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}.docx"`);
       res.send(buffer);
     } else {
-      const buffer = await generatePdf(cvEstructurado, styleVariant);
+      const buffer = await generatePdf(htmlContent);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}.pdf"`);
       res.send(buffer);

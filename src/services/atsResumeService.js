@@ -154,16 +154,32 @@ ${cvText}
 }
 
 // ─── MEJORA DEL CV ──────────────────────────────────────────────────────────
+// Cada versión se genera en su propia llamada a Claude (en paralelo con
+// Promise.all) en vez de pedir las dos en un solo prompt: una sola llamada
+// generando dos CVs HTML completos se acercaba/excedía el timeout del fetch
+// del frontend. Separarlas reduce el tiempo de cada llamada individual y deja
+// que corran en paralelo en vez de sumarse.
 
-async function improveCV(cvText, atsReport, language, fileName) {
+function commonInstructions(lang) {
+  return `PARA EL HTML — debe:
+- Ser un HTML completo y válido con <html><head><body>
+- Incluir todos los estilos inline o en <style> en el <head>
+- Estar optimizado para impresión/PDF (usar @media print)
+- Ancho fijo de 794px (A4)
+- Márgenes: 40px laterales, 30px arriba/abajo
+- Fuente base: 11px Inter o Arial
+- SIN JavaScript
+- SIN imágenes externas
+- Todo el contenido real del candidato incluido, escrito en ${lang}`;
+}
+
+async function generateVersion(cvText, atsReport, language, spec) {
   const lang = language === 'en' ? 'English' : 'Español';
-  const langInstruction = language === 'en'
-    ? 'Write everything in English.'
-    : 'Escribe todo en Español.';
+  const langInstruction = language === 'en' ? 'Write everything in English.' : 'Escribe todo en Español.';
 
   const prompt = `Eres un experto en redacción de CVs de alto impacto y ATS optimization.
 
-Tienes el CV original de un candidato y un reporte ATS detallado con sus problemas. Tu tarea es generar DOS versiones mejoradas del CV.
+Tienes el CV original de un candidato y un reporte ATS detallado con sus problemas. Tu tarea es generar UNA versión mejorada del CV: ${spec.titulo}.
 
 IDIOMA DE SALIDA: ${lang}. ${langInstruction}
 
@@ -178,51 +194,42 @@ ${cvText}
 Genera SOLO un JSON válido con esta estructura (sin markdown, sin backticks):
 
 {
-  "version1": {
-    "titulo": "CV Optimizado — Estructura Original",
-    "descripcion": "Misma estructura y secciones del CV original, contenido optimizado para ATS",
-    "html": "<HTML completo del CV versión 1>"
-  },
-  "version2": {
-    "titulo": "CV Profesional — Diseño JobFinder",
-    "descripcion": "Diseño limpio y moderno 100% optimizado para ATS con propuesta visual propia",
-    "html": "<HTML completo del CV versión 2>"
-  },
-  "cvEstructurado": {
-    "nombre": "<nombre completo>",
-    "cargoActual": "<cargo actual o más reciente, o null>",
-    "resumen": "<resumen profesional mejorado, el mismo usado en las versiones HTML>",
-    "contacto": {
-      "email": "<email o null>",
-      "telefono": "<teléfono o null>",
-      "linkedin": "<URL o null>",
-      "ubicacion": "<ciudad/país o null>"
-    },
-    "experiencia": [
-      { "cargo": "<cargo>", "empresa": "<empresa>", "fechas": "<periodo>", "logros": ["<logro/responsabilidad con verbo de acción y métrica cuando aplique>"] }
-    ],
-    "educacion": [
-      { "titulo": "<título>", "institucion": "<institución>", "anio": "<año/periodo>" }
-    ],
-    "skills": ["<habilidad>"],
-    "certificaciones": ["<certificación>"],
-    "idiomas": [
-      { "idioma": "<idioma>", "nivel": "<nivel>" }
-    ]
-  }
+  "titulo": "${spec.titulo}",
+  "descripcion": "${spec.descripcion}",
+  "html": "<HTML completo del CV>"
 }
 
-INSTRUCCIONES PARA VERSIÓN 1 (misma estructura, contenido mejorado):
-- Mantener el mismo orden de secciones del CV original
+INSTRUCCIONES:
+${spec.instrucciones}
+
+${commonInstructions(lang)}`;
+
+  const client = getClient();
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 7000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  return JSON.parse(stripCodeFences(extractText(response)));
+}
+
+const VERSION1_SPEC = {
+  titulo: 'CV Optimizado — Estructura Original',
+  descripcion: 'Misma estructura y secciones del CV original, contenido optimizado para ATS',
+  instrucciones: `- Mantener el mismo orden de secciones del CV original
 - Mantener todos los trabajos, educación y datos del candidato
 - Reescribir las descripciones con verbos de acción fuertes y métricas donde sea posible
 - Agregar keywords faltantes identificadas en el reporte ATS de forma natural
 - Corregir todos los problemas críticos y advertencias del reporte
 - NO usar tablas — solo texto, listas y párrafos
-- Expandir el perfil/resumen si es débil
+- Expandir el perfil/resumen si es débil`,
+};
 
-INSTRUCCIONES PARA VERSIÓN 2 (diseño JobFinder — 100% ATS friendly):
-- Estructura limpia y ordenada: Contacto > Perfil Profesional > Experiencia > Educación > Habilidades > Certificaciones
+const VERSION2_SPEC = {
+  titulo: 'CV Profesional — Diseño JobFinder',
+  descripcion: 'Diseño limpio y moderno 100% optimizado para ATS con propuesta visual propia',
+  instrucciones: `- Estructura limpia y ordenada: Contacto > Perfil Profesional > Experiencia > Educación > Habilidades > Certificaciones
 - Diseño visual con colores sobrios: encabezado con fondo #1E1B4B (índigo oscuro), texto blanco en header, cuerpo en blanco con acentos #4F46E5
 - Tipografía: usar Google Fonts 'Inter'
 - Sin tablas, sin columnas múltiples, sin iconos decorativos — solo texto estructurado
@@ -231,33 +238,16 @@ INSTRUCCIONES PARA VERSIÓN 2 (diseño JobFinder — 100% ATS friendly):
 - Fechas en formato MM/YYYY consistente
 - Skills como chips/badges sobrios en gris claro
 - Métricas y logros destacados en negrita
-- Footer con nombre del candidato y número de página
+- Footer con nombre del candidato y número de página`,
+};
 
-PARA AMBAS VERSIONES — el HTML debe:
-- Ser un HTML completo y válido con <html><head><body>
-- Incluir todos los estilos inline o en <style> en el <head>
-- Estar optimizado para impresión/PDF (usar @media print)
-- Ancho fijo de 794px (A4)
-- Márgenes: 40px laterales, 30px arriba/abajo
-- Fuente base: 11px Inter o Arial
-- SIN JavaScript
-- SIN imágenes externas
-- Todo el contenido real del candidato incluido
+async function improveCV(cvText, atsReport, language) {
+  const [version1, version2] = await Promise.all([
+    generateVersion(cvText, atsReport, language, VERSION1_SPEC),
+    generateVersion(cvText, atsReport, language, VERSION2_SPEC),
+  ]);
 
-PARA "cvEstructurado":
-- Mismo contenido optimizado que usaste en las versiones HTML (mismas descripciones mejoradas, mismas keywords agregadas), pero como datos planos en ${lang}, sin HTML ni markdown en los textos
-- Es la fuente que se usa para generar los DOCX/PDF descargables con estilos reales aplicados por campo, así que debe incluir TODA la información real del candidato (no resumir ni omitir experiencias/educación)
-- "logros" son bullets individuales (uno por elemento del array), no un párrafo largo
-- Si un dato no existe en el CV original, usar null (contacto.*, cargoActual) o array vacío (educacion, skills, certificaciones, idiomas) — nunca inventar`;
-
-  const client = getClient();
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  return JSON.parse(stripCodeFences(extractText(response)));
+  return { version1, version2 };
 }
 
 module.exports = { analyzeATS, improveCV };
