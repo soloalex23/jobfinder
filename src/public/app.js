@@ -1503,11 +1503,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const fileName = `${baseName}_${vLabel}`;
 
     if (format === 'pdf') {
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(entry.html);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => printWindow.print(), 500);
+      const blob = new Blob([entry.html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, '_blank');
+      printWindow.addEventListener('load', function () {
+        setTimeout(() => {
+          printWindow.print();
+          URL.revokeObjectURL(url);
+        }, 800);
+      });
       return;
     }
 

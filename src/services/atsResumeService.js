@@ -170,7 +170,10 @@ function commonInstructions(lang) {
 - Fuente base: 11px Inter o Arial
 - SIN JavaScript
 - SIN imágenes externas
-- Todo el contenido real del candidato incluido, escrito en ${lang}`;
+- Todo el contenido real del candidato incluido, escrito en ${lang}
+- El CV se va a imprimir/guardar como PDF desde el navegador: el <head> debe incluir SIEMPRE, sin excepción, estas dos líneas exactas para que los colores de fondo (headers, acentos) se impriman correctamente en vez de salir en blanco:
+  <meta name="color-scheme" content="light">
+  <style>* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } </style>`;
 }
 
 async function generateVersion(cvText, atsReport, language, spec) {
