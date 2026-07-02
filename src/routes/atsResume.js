@@ -49,21 +49,23 @@ router.post('/improve', async (req, res) => {
 });
 
 // POST /api/resume/download
-// Convierte el HTML del CV mejorado a DOCX o PDF y lo devuelve como descarga.
+// Genera el CV mejorado (DOCX o PDF) directamente desde el CV estructurado
+// que devolvió /improve, aplicando estilos reales por campo — no se parsea
+// HTML, así el documento sí queda formateado.
 router.post('/download', async (req, res) => {
   try {
-    const { htmlContent, format, fileName = 'CV' } = req.body || {};
-    if (!htmlContent) {
-      return res.status(400).json({ error: 'Missing htmlContent' });
+    const { cvEstructurado, format, fileName = 'CV', styleVariant = 'v2' } = req.body || {};
+    if (!cvEstructurado) {
+      return res.status(400).json({ error: 'Missing cvEstructurado' });
     }
 
     if (format === 'docx') {
-      const buffer = await generateDocx(htmlContent);
+      const buffer = await generateDocx(cvEstructurado, styleVariant);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}.docx"`);
       res.send(buffer);
     } else {
-      const buffer = await generatePdf(htmlContent);
+      const buffer = await generatePdf(cvEstructurado, styleVariant);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}.pdf"`);
       res.send(buffer);

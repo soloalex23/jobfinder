@@ -60,6 +60,11 @@ app.use((err, req, res, next) => {
 // '0.0.0.0' es obligatorio en Railway (y contenedores en general): sin
 // especificar el host, el bind puede resolver a un socket que el proxy
 // de la plataforma no puede alcanzar, aunque el puerto sea el correcto.
-app.listen(config.port, '0.0.0.0', () => {
+const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(`Servidor escuchando en puerto ${config.port}`);
 });
+
+// El análisis/mejora de CV con Claude puede tardar más del timeout por
+// defecto de Node para conexiones HTTP en algunos casos (~2 min); se sube
+// a 180s para que esas requests no se corten a mitad de camino.
+server.timeout = 180000;

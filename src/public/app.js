@@ -1198,6 +1198,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let rhAtsReport = null;
   let rhCvVersion1Html = null;
   let rhCvVersion2Html = null;
+  let rhCvEstructurado = null;
   let rhSelectedLang = 'es';
 
   // Colores según score
@@ -1312,12 +1313,17 @@ document.addEventListener('DOMContentLoaded', function () {
           if (window._rhFile) {
             const formData = new FormData();
             formData.append('cv', window._rhFile);
-            response = await fetch('/api/resume/ats-analyze', { method: 'POST', body: formData });
+            response = await fetch('/api/resume/ats-analyze', {
+              method: 'POST',
+              body: formData,
+              signal: AbortSignal.timeout(120000),
+            });
           } else if (rhCvText) {
             response = await fetch('/api/resume/ats-analyze', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ cvText: rhCvText, fileName: rhFileName }),
+              signal: AbortSignal.timeout(120000),
             });
           } else {
             throw new Error('No hay CV para analizar.');
@@ -1372,6 +1378,7 @@ document.addEventListener('DOMContentLoaded', function () {
               language: rhSelectedLang,
               fileName: rhFileName,
             }),
+            signal: AbortSignal.timeout(120000),
           });
 
           const data = await response.json();
@@ -1379,6 +1386,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
           rhCvVersion1Html = data.version1.html;
           rhCvVersion2Html = data.version2.html;
+          rhCvEstructurado = data.cvEstructurado;
 
           clearInterval(msgInterval2);
           document.getElementById('rhImprovingLoading').style.display = 'none';
@@ -1483,7 +1491,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── DESCARGA ──
   window.downloadCV = async function (version, format) {
-    const html = version === 'v1' ? rhCvVersion1Html : rhCvVersion2Html;
+    if (!rhCvEstructurado) {
+      window.alert('No hay un CV mejorado listo para descargar todavía.');
+      return;
+    }
     const baseName = (rhFileName || 'CV').replace(/\.[^.]+$/, '');
     const vLabel = version === 'v1' ? 'Original' : 'JobFinder';
     const fileName = `${baseName}_${vLabel}`;
@@ -1492,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const response = await fetch('/api/resume/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ htmlContent: html, format, fileName }),
+        body: JSON.stringify({ cvEstructurado: rhCvEstructurado, format, fileName, styleVariant: version }),
       });
 
       if (!response.ok) throw new Error('Error generando archivo');

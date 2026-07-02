@@ -187,6 +187,28 @@ Genera SOLO un JSON válido con esta estructura (sin markdown, sin backticks):
     "titulo": "CV Profesional — Diseño JobFinder",
     "descripcion": "Diseño limpio y moderno 100% optimizado para ATS con propuesta visual propia",
     "html": "<HTML completo del CV versión 2>"
+  },
+  "cvEstructurado": {
+    "nombre": "<nombre completo>",
+    "cargoActual": "<cargo actual o más reciente, o null>",
+    "resumen": "<resumen profesional mejorado, el mismo usado en las versiones HTML>",
+    "contacto": {
+      "email": "<email o null>",
+      "telefono": "<teléfono o null>",
+      "linkedin": "<URL o null>",
+      "ubicacion": "<ciudad/país o null>"
+    },
+    "experiencia": [
+      { "cargo": "<cargo>", "empresa": "<empresa>", "fechas": "<periodo>", "logros": ["<logro/responsabilidad con verbo de acción y métrica cuando aplique>"] }
+    ],
+    "educacion": [
+      { "titulo": "<título>", "institucion": "<institución>", "anio": "<año/periodo>" }
+    ],
+    "skills": ["<habilidad>"],
+    "certificaciones": ["<certificación>"],
+    "idiomas": [
+      { "idioma": "<idioma>", "nivel": "<nivel>" }
+    ]
   }
 }
 
@@ -220,12 +242,18 @@ PARA AMBAS VERSIONES — el HTML debe:
 - Fuente base: 11px Inter o Arial
 - SIN JavaScript
 - SIN imágenes externas
-- Todo el contenido real del candidato incluido`;
+- Todo el contenido real del candidato incluido
+
+PARA "cvEstructurado":
+- Mismo contenido optimizado que usaste en las versiones HTML (mismas descripciones mejoradas, mismas keywords agregadas), pero como datos planos en ${lang}, sin HTML ni markdown en los textos
+- Es la fuente que se usa para generar los DOCX/PDF descargables con estilos reales aplicados por campo, así que debe incluir TODA la información real del candidato (no resumir ni omitir experiencias/educación)
+- "logros" son bullets individuales (uno por elemento del array), no un párrafo largo
+- Si un dato no existe en el CV original, usar null (contacto.*, cargoActual) o array vacío (educacion, skills, certificaciones, idiomas) — nunca inventar`;
 
   const client = getClient();
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 12000,
+    max_tokens: 16000,
     messages: [{ role: 'user', content: prompt }],
   });
 
