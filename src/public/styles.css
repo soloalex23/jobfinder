@@ -1297,7 +1297,8 @@ body {
   transition: background 0.15s;
 }
 
-.rh-dropzone:hover { background: #F3F4F6; }
+.rh-dropzone:hover,
+.rh-dropzone.dragover { background: #F3F4F6; border-radius: 10px; }
 
 .rh-drop-icon { font-size: 32px; display: block; margin-bottom: 10px; }
 
@@ -1599,6 +1600,14 @@ body {
 .rh-improve-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* Los labels de campo dentro de la caja índigo heredan un color oscuro por
+   defecto que no contrasta contra el fondo — se fuerzan a blanco. */
+.rh-improve-card .field label,
+.jm-doc-lang-label,
+.jm-doc-field-label {
+  color: #FFFFFF;
 }
 
 /* VERSIONES */

@@ -1262,6 +1262,30 @@ document.addEventListener('DOMContentLoaded', function () {
       analyzeBtn.disabled = false;
     });
 
+    // Drag-and-drop — reusa el handler de 'change' de arriba en vez de
+    // duplicar la lógica de carga.
+    const dropzone = document.getElementById('rhDropzone');
+    if (dropzone) {
+      ['dragenter', 'dragover'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('dragover');
+        });
+      });
+      dropzone.addEventListener('drop', (e) => {
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+        fileInput.files = e.dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change'));
+      });
+    }
+
     // Cambiar CV
     if (changeBtn) {
       changeBtn.addEventListener('click', function () {
@@ -1564,6 +1588,18 @@ document.addEventListener('DOMContentLoaded', function () {
     return '#DC2626';
   }
 
+  // Definida a nivel de módulo (no dentro del listener de DOMContentLoaded)
+  // porque jmSetCvFromJobSearch también necesita llamarla y vive en este
+  // mismo scope superior — antes estaba anidada adentro del listener y
+  // jmSetCvFromJobSearch no podía verla (ReferenceError).
+  function updateAnalyzeBtnState() {
+    const analyzeBtn = document.getElementById('jmAnalyzeBtn');
+    const jdTextarea = document.getElementById('jmJobDescription');
+    if (analyzeBtn && jdTextarea) {
+      analyzeBtn.disabled = !(jmCvText && jdTextarea.value.trim());
+    }
+  }
+
   // ── Integración con CV ya cargado desde Job Search ──
   window.jmSetCvFromJobSearch = function (text, data, name) {
     jmCvText = text;
@@ -1624,6 +1660,30 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
 
+    // Drag-and-drop — reusa el handler de 'change' de arriba en vez de
+    // duplicar la lógica de carga.
+    const dropzone = document.getElementById('jmDropzone');
+    if (dropzone) {
+      ['dragenter', 'dragover'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('dragover');
+        });
+      });
+      dropzone.addEventListener('drop', (e) => {
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+        fileInput.files = e.dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change'));
+      });
+    }
+
     if (changeBtn) {
       changeBtn.addEventListener('click', function () {
         document.getElementById('jmCvLoaded').style.display = 'none';
@@ -1636,24 +1696,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     jdTextarea.addEventListener('input', updateAnalyzeBtnState);
 
-    function updateAnalyzeBtnState() {
-      analyzeBtn.disabled = !(jmCvText && jdTextarea.value.trim());
+    // Dos toggles de idioma en la sección (uno junto al form de análisis,
+    // otro en la caja "Generar Documentos") que comparten el mismo estado
+    // jmSelectedLang — se mantienen sincronizados entre sí.
+    const docLangEs = document.getElementById('jmDocLangEs');
+    const docLangEn = document.getElementById('jmDocLangEn');
+    const allLangEsBtns = [langEs, docLangEs].filter(Boolean);
+    const allLangEnBtns = [langEn, docLangEn].filter(Boolean);
+
+    function setJmLang(lang) {
+      jmSelectedLang = lang;
+      allLangEsBtns.forEach((btn) => btn.classList.toggle('active', lang === 'es'));
+      allLangEnBtns.forEach((btn) => btn.classList.toggle('active', lang === 'en'));
     }
 
-    if (langEs) {
-      langEs.addEventListener('click', function () {
-        jmSelectedLang = 'es';
-        langEs.classList.add('active');
-        langEn.classList.remove('active');
-      });
-    }
-    if (langEn) {
-      langEn.addEventListener('click', function () {
-        jmSelectedLang = 'en';
-        langEn.classList.add('active');
-        langEs.classList.remove('active');
-      });
-    }
+    allLangEsBtns.forEach((btn) => btn.addEventListener('click', () => setJmLang('es')));
+    allLangEnBtns.forEach((btn) => btn.addEventListener('click', () => setJmLang('en')));
 
     // ── ANALIZAR ──
     analyzeBtn.addEventListener('click', async function () {

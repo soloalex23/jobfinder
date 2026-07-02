@@ -734,7 +734,14 @@
               <p class="rh-improve-desc">Ajustá tu CV a esta vacante o generá una carta de presentación. Confirmá el nombre de la empresa (se detecta automáticamente si aparece en la JD):</p>
             </div>
             <div class="field">
-              <label for="jmCompanyName">Empresa</label>
+              <label class="jm-doc-lang-label">Idioma de salida</label>
+              <div class="rh-lang-toggle" id="jmDocLangToggle">
+                <button type="button" class="rh-lang-btn active" data-lang="es" id="jmDocLangEs">🇨🇴 Español</button>
+                <button type="button" class="rh-lang-btn" data-lang="en" id="jmDocLangEn">🇺🇸 English</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="jmCompanyName" class="jm-doc-field-label">Empresa</label>
               <input type="text" id="jmCompanyName" placeholder="Nombre de la empresa">
             </div>
             <div class="jm-doc-actions">
