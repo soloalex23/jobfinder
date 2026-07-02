@@ -1689,3 +1689,121 @@ body {
   .rh-score-card { flex-direction: column; text-align: center; }
   .rh-improve-controls { flex-direction: column; align-items: flex-start; }
 }
+
+/* =============================================
+   JOB MATCH
+   ============================================= */
+
+.jm-container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 32px 80px;
+}
+
+.jm-header { margin-bottom: 32px; }
+
+.jm-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px;
+}
+
+.jm-subtitle {
+  font-size: 15px;
+  color: #6B7280;
+  margin: 0;
+}
+
+.jm-form {
+  background: #F9FAFB;
+  border: 1.5px dashed #D1D5DB;
+  border-radius: 14px;
+  padding: 28px;
+  margin-bottom: 32px;
+}
+
+.jm-form .field { margin-top: 16px; }
+
+.jm-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-input);
+  background: #fff;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  resize: vertical;
+  outline: none;
+}
+
+.jm-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.jm-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.jm-form-footer .rh-lang-toggle {
+  background: rgba(0,0,0,0.04);
+}
+
+.jm-form-footer .rh-lang-btn {
+  color: var(--text-secondary);
+}
+
+.jm-form-footer .rh-lang-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.jm-analyze-btn { width: auto; margin-top: 0; padding: 12px 24px; }
+
+.jm-doc-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.jm-doc-actions .rh-improve-btn { flex: 1; min-width: 200px; }
+
+.jm-doc-result {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.jm-doc-result-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 14px;
+}
+
+.jm-cl-preview {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #374151;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  .jm-form-footer { flex-direction: column; align-items: stretch; }
+  .jm-doc-actions { flex-direction: column; }
+}

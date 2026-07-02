@@ -30,6 +30,7 @@ const jobsRouter = require('./routes/jobs');
 const cvRouter = require('./routes/cv');
 const companiesRouter = require('./routes/companies');
 const atsResumeRouter = require('./routes/atsResume');
+const jobMatchRouter = require('./routes/jobMatch');
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api/cv', cvRouter);
 app.use('/api/companies', companiesRouter);
 app.use('/api/resume', atsResumeRouter);
+app.use('/api/match', jobMatchRouter);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {

@@ -382,8 +382,10 @@ document.addEventListener('DOMContentLoaded', function () {
       state.cvParsed = parsed;
       updateSidebarCvStatus(file.name, parsed);
       window.globalCvText = parsed.cvText;
+      window.globalCvData = parsed;
       window.globalCvFileName = file.name;
       window.rhSetCvFromJobSearch && window.rhSetCvFromJobSearch(parsed.cvText, file.name);
+      window.jmSetCvFromJobSearch && window.jmSetCvFromJobSearch(parsed.cvText, parsed, file.name);
       renderCvSummary(parsed);
       revealTargetCompaniesSection(parsed);
     } catch {
@@ -520,6 +522,9 @@ document.addEventListener('DOMContentLoaded', function () {
       cvInput.value = '';
       resetCvUi();
       updateSidebarCvStatus(null, null);
+      window.globalCvText = null;
+      window.globalCvData = null;
+      window.globalCvFileName = null;
       return;
     }
 
@@ -1537,5 +1542,358 @@ document.addEventListener('DOMContentLoaded', function () {
       window.alert('Error al descargar: ' + err.message);
     }
   };
+})();
+
+// =============================================
+// JOB MATCH
+// =============================================
+
+(function () {
+  let jmCvText = null;
+  let jmCvData = null;
+  let jmFileName = null;
+  let jmMatchReport = null;
+  let jmAdjustedCv = null; // { data, cambiosRealizados }
+  let jmCoverLetter = null; // { data }
+  let jmSelectedLang = 'es';
+
+  function scoreColor(score) {
+    if (score >= 80) return '#16A34A';
+    if (score >= 60) return '#D97706';
+    if (score >= 40) return '#EA580C';
+    return '#DC2626';
+  }
+
+  // ── Integración con CV ya cargado desde Job Search ──
+  window.jmSetCvFromJobSearch = function (text, data, name) {
+    jmCvText = text;
+    jmCvData = data;
+    jmFileName = name || 'curriculum';
+    const loadedEl = document.getElementById('jmCvLoaded');
+    const uploadEl = document.getElementById('jmCvUpload');
+    const nameEl = document.getElementById('jmCvName');
+    if (loadedEl) loadedEl.style.display = 'block';
+    if (uploadEl) uploadEl.style.display = 'none';
+    if (nameEl) nameEl.textContent = name || 'CV cargado';
+    updateAnalyzeBtnState();
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const fileInput = document.getElementById('jmFileInput');
+    const analyzeBtn = document.getElementById('jmAnalyzeBtn');
+    const changeBtn = document.getElementById('jmCvChange');
+    const jdTextarea = document.getElementById('jmJobDescription');
+    const langEs = document.getElementById('jmLangEs');
+    const langEn = document.getElementById('jmLangEn');
+    const adjustBtn = document.getElementById('jmAdjustCvBtn');
+    const coverLetterBtn = document.getElementById('jmCoverLetterBtn');
+    const downloadCvBtn = document.getElementById('jmDownloadCvBtn');
+    const downloadClBtn = document.getElementById('jmDownloadClBtn');
+
+    if (!fileInput) return; // sección no cargada
+
+    if (window.globalCvText && window.globalCvData) {
+      window.jmSetCvFromJobSearch(window.globalCvText, window.globalCvData, window.globalCvFileName);
+    }
+
+    // ── Upload propio (reusa /api/cv/parse — mismo pipeline PDF/DOCX ya probado) ──
+    fileInput.addEventListener('change', async function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      analyzeBtn.disabled = true;
+      analyzeBtn.textContent = 'Leyendo CV...';
+
+      try {
+        const formData = new FormData();
+        formData.append('cv', file);
+        const response = await fetch('/api/cv/parse', {
+          method: 'POST',
+          body: formData,
+          signal: AbortSignal.timeout(180000),
+        });
+        if (!response.ok) throw new Error('No se pudo leer el CV.');
+        const parsed = await response.json();
+
+        window.jmSetCvFromJobSearch(parsed.cvText, parsed, file.name);
+      } catch (err) {
+        window.alert('Error al leer el CV: ' + err.message);
+      } finally {
+        analyzeBtn.textContent = 'Analizar Compatibilidad →';
+        updateAnalyzeBtnState();
+      }
+    });
+
+    if (changeBtn) {
+      changeBtn.addEventListener('click', function () {
+        document.getElementById('jmCvLoaded').style.display = 'none';
+        document.getElementById('jmCvUpload').style.display = 'block';
+        jmCvText = null;
+        jmCvData = null;
+        updateAnalyzeBtnState();
+      });
+    }
+
+    jdTextarea.addEventListener('input', updateAnalyzeBtnState);
+
+    function updateAnalyzeBtnState() {
+      analyzeBtn.disabled = !(jmCvText && jdTextarea.value.trim());
+    }
+
+    if (langEs) {
+      langEs.addEventListener('click', function () {
+        jmSelectedLang = 'es';
+        langEs.classList.add('active');
+        langEn.classList.remove('active');
+      });
+    }
+    if (langEn) {
+      langEn.addEventListener('click', function () {
+        jmSelectedLang = 'en';
+        langEn.classList.add('active');
+        langEs.classList.remove('active');
+      });
+    }
+
+    // ── ANALIZAR ──
+    analyzeBtn.addEventListener('click', async function () {
+      document.getElementById('jmForm').style.display = 'none';
+      document.getElementById('jmReport').style.display = 'none';
+      document.getElementById('jmAdjustResult').style.display = 'none';
+      document.getElementById('jmCoverLetterResult').style.display = 'none';
+      document.getElementById('jmLoading').style.display = 'block';
+
+      const loadingMessages = [
+        'Comparando tu CV con la vacante...',
+        'Evaluando habilidades y keywords...',
+        'Analizando experiencia y seniority...',
+        'Generando reporte de compatibilidad...',
+      ];
+      let msgIdx = 0;
+      const msgEl = document.getElementById('jmLoadingText');
+      const msgInterval = setInterval(() => {
+        msgIdx = (msgIdx + 1) % loadingMessages.length;
+        if (msgEl) msgEl.textContent = loadingMessages[msgIdx];
+      }, 2000);
+
+      try {
+        const response = await fetch('/api/match/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cvText: jmCvText,
+            cvData: jmCvData,
+            jobDescription: jdTextarea.value.trim(),
+            language: jmSelectedLang,
+          }),
+          signal: AbortSignal.timeout(180000),
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+
+        jmMatchReport = data;
+
+        clearInterval(msgInterval);
+        document.getElementById('jmLoading').style.display = 'none';
+        renderMatchReport(data);
+        document.getElementById('jmReport').style.display = 'block';
+      } catch (err) {
+        clearInterval(msgInterval);
+        document.getElementById('jmLoading').style.display = 'none';
+        document.getElementById('jmForm').style.display = 'block';
+        window.alert('Error al analizar la compatibilidad: ' + err.message);
+      }
+    });
+
+    // ── GENERAR CV AJUSTADO ──
+    adjustBtn.addEventListener('click', async function () {
+      document.getElementById('jmDocLoadingText').textContent = 'Ajustando tu CV a esta vacante...';
+      document.getElementById('jmDocLoading').style.display = 'block';
+      document.getElementById('jmAdjustResult').style.display = 'none';
+
+      try {
+        const response = await fetch('/api/match/adjust-cv', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cvData: jmCvData,
+            jobDescription: jdTextarea.value.trim(),
+            matchReport: jmMatchReport,
+            language: jmSelectedLang,
+          }),
+          signal: AbortSignal.timeout(180000),
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+
+        jmAdjustedCv = { data: data.data, cambiosRealizados: data.cambiosRealizados };
+
+        document.getElementById('jmCambiosList').innerHTML = (data.cambiosRealizados || [])
+          .map((c) => `<li>${c}</li>`).join('');
+        document.getElementById('jmDocLoading').style.display = 'none';
+        document.getElementById('jmAdjustResult').style.display = 'block';
+      } catch (err) {
+        document.getElementById('jmDocLoading').style.display = 'none';
+        window.alert('Error al generar el CV ajustado: ' + err.message);
+      }
+    });
+
+    // ── GENERAR COVER LETTER ──
+    coverLetterBtn.addEventListener('click', async function () {
+      const companyName = document.getElementById('jmCompanyName').value.trim();
+      if (!companyName) {
+        window.alert('Confirmá el nombre de la empresa antes de generar la carta.');
+        return;
+      }
+
+      document.getElementById('jmDocLoadingText').textContent = 'Generando tu cover letter...';
+      document.getElementById('jmDocLoading').style.display = 'block';
+      document.getElementById('jmCoverLetterResult').style.display = 'none';
+
+      try {
+        const response = await fetch('/api/match/cover-letter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cvData: jmCvData,
+            jobDescription: jdTextarea.value.trim(),
+            companyName,
+            language: jmSelectedLang,
+          }),
+          signal: AbortSignal.timeout(180000),
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+
+        jmCoverLetter = { data: data.data };
+        renderCoverLetterPreview(data.data);
+
+        document.getElementById('jmDocLoading').style.display = 'none';
+        document.getElementById('jmCoverLetterResult').style.display = 'block';
+      } catch (err) {
+        document.getElementById('jmDocLoading').style.display = 'none';
+        window.alert('Error al generar la cover letter: ' + err.message);
+      }
+    });
+
+    // ── DESCARGAS ──
+    downloadCvBtn.addEventListener('click', async function () {
+      if (!jmAdjustedCv) return;
+      await downloadDocx('/api/match/download-cv', jmAdjustedCv.data, `${(jmFileName || 'CV').replace(/\.[^.]+$/, '')}_Ajustado`);
+    });
+
+    downloadClBtn.addEventListener('click', async function () {
+      if (!jmCoverLetter) return;
+      const companyName = document.getElementById('jmCompanyName').value.trim() || 'Empresa';
+      await downloadDocx('/api/match/download-cover-letter', jmCoverLetter.data, `Cover_Letter_${companyName}`);
+    });
+
+    async function downloadDocx(endpoint, data, fileName) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data, fileName }),
+        });
+        if (!response.ok) throw new Error('Error generando archivo');
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        window.alert('Error al descargar: ' + err.message);
+      }
+    }
+
+    updateAnalyzeBtnState();
+  });
+
+  // ── RENDER REPORTE DE MATCH ──
+  function renderMatchReport(report) {
+    document.getElementById('jmScoreNumber').textContent = report.score;
+    document.getElementById('jmScoreNivel').textContent = report.nivel;
+    document.getElementById('jmScoreResumen').textContent = report.resumenEjecutivo;
+    document.getElementById('jmScoreNumber').style.color = scoreColor(report.score);
+
+    const catContainer = document.getElementById('jmDesglose');
+    catContainer.innerHTML = '';
+    (report.desglose || []).forEach((cat) => {
+      const card = document.createElement('div');
+      card.className = 'rh-cat-card';
+      const barColor = scoreColor(cat.puntaje);
+      card.innerHTML = `
+        <div class="rh-cat-header">
+          <span class="rh-cat-title">${cat.categoria} (${cat.peso}%)</span>
+          <span class="rh-cat-score" style="color:${barColor}">${cat.puntaje}/100</span>
+        </div>
+        <div class="rh-cat-bar">
+          <div class="rh-cat-bar-fill" style="width:${cat.puntaje}%;background:${barColor}"></div>
+        </div>
+        <p class="rh-hallazgo"><span>${cat.comentario || ''}</span></p>
+      `;
+      catContainer.appendChild(card);
+    });
+
+    const brechasBlock = document.getElementById('jmBrechasBlock');
+    if (report.brechas && report.brechas.length) {
+      brechasBlock.style.display = 'block';
+      document.getElementById('jmBrechasList').innerHTML = report.brechas.map((b) => `<li>🔴 ${b}</li>`).join('');
+    } else {
+      brechasBlock.style.display = 'none';
+    }
+
+    const fortalezasBlock = document.getElementById('jmFortalezasBlock');
+    if (report.fortalezas && report.fortalezas.length) {
+      fortalezasBlock.style.display = 'block';
+      document.getElementById('jmFortalezasList').innerHTML = report.fortalezas.map((f) => `<li>${f}</li>`).join('');
+    } else {
+      fortalezasBlock.style.display = 'none';
+    }
+
+    document.getElementById('jmKeywordsCoincidentes').innerHTML = (report.keywordsCoincidentes || [])
+      .map((k) => `<span class="rh-chip">${k}</span>`).join('');
+    document.getElementById('jmKeywordsFaltantes').innerHTML = (report.keywordsFaltantes || [])
+      .map((k) => `<span class="rh-chip">${k}</span>`).join('');
+    document.getElementById('jmAccionesList').innerHTML = (report.recomendacionesPrioritarias || [])
+      .map((a) => `<li>${a}</li>`).join('');
+
+    const companyInput = document.getElementById('jmCompanyName');
+    if (report.empresaDetectada && !companyInput.value.trim()) {
+      companyInput.value = report.empresaDetectada;
+    }
+  }
+
+  // ── RENDER PREVIEW COVER LETTER ──
+  function renderCoverLetterPreview(cl) {
+    const remitente = cl.remitente || {};
+    const destinatario = cl.destinatario || {};
+    const lines = [
+      remitente.nombre,
+      remitente.contacto,
+      '',
+      cl.fecha,
+      '',
+      destinatario.empresa,
+      destinatario.puesto ? `Re: ${destinatario.puesto}` : '',
+      '',
+      cl.saludo,
+      '',
+      ...(cl.parrafos || []),
+      '',
+      cl.despedida,
+      cl.firma,
+    ].filter((line) => line !== undefined);
+
+    document.getElementById('jmClPreview').textContent = lines.join('\n');
+  }
 })();
 
