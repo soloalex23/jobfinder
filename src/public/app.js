@@ -381,6 +381,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const parsed = await response.json();
       state.cvParsed = parsed;
       updateSidebarCvStatus(file.name, parsed);
+      window.globalCvText = parsed.cvText;
+      window.globalCvFileName = file.name;
+      window.rhSetCvFromJobSearch && window.rhSetCvFromJobSearch(parsed.cvText, file.name);
       renderCvSummary(parsed);
       revealTargetCompaniesSection(parsed);
     } catch {
@@ -1184,3 +1187,328 @@ document.addEventListener('DOMContentLoaded', function () {
   updateLinkedinHref();
   showScreen('form');
 })();
+
+// =============================================
+// RESUME HEALTH
+// =============================================
+
+(function () {
+  let rhCvText = null;
+  let rhFileName = null;
+  let rhAtsReport = null;
+  let rhCvVersion1Html = null;
+  let rhCvVersion2Html = null;
+  let rhSelectedLang = 'es';
+
+  // Colores según score
+  function scoreColor(score) {
+    if (score >= 80) return '#16A34A';
+    if (score >= 60) return '#D97706';
+    if (score >= 40) return '#EA580C';
+    return '#DC2626';
+  }
+
+  // Iconos por tipo de hallazgo
+  function hallazgoIcon(tipo) {
+    const icons = { ok: '✅', critico: '🔴', advertencia: '⚠️', sugerencia: '💡' };
+    return icons[tipo] || '•';
+  }
+
+  // ── Integración con CV ya cargado desde Job Search ──
+  window.rhSetCvFromJobSearch = function (text, name) {
+    rhCvText = text;
+    rhFileName = name || 'curriculum';
+    const loadedEl = document.getElementById('rhCvLoaded');
+    const uploadEl = document.getElementById('rhCvUpload');
+    const nameEl = document.getElementById('rhCvName');
+    const btn = document.getElementById('rhAnalyzeBtn');
+    if (loadedEl) loadedEl.style.display = 'block';
+    if (uploadEl) uploadEl.style.display = 'none';
+    if (nameEl) nameEl.textContent = name || 'CV cargado';
+    if (btn) btn.disabled = false;
+  };
+
+  // ── File upload propio de Resume Health ──
+  document.addEventListener('DOMContentLoaded', function () {
+    const fileInput = document.getElementById('rhFileInput');
+    const analyzeBtn = document.getElementById('rhAnalyzeBtn');
+    const changeBtn = document.getElementById('rhCvChange');
+    const langEs = document.getElementById('rhLangEs');
+    const langEn = document.getElementById('rhLangEn');
+    const improveBtn = document.getElementById('rhImproveBtn');
+
+    if (!fileInput) return; // sección no cargada
+
+    // Si ya hay CV del estado global (cargado en Job Search)
+    if (window.globalCvText) {
+      window.rhSetCvFromJobSearch(window.globalCvText, window.globalCvFileName);
+    }
+
+    // Upload de archivo
+    fileInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      rhFileName = file.name;
+      rhCvText = null; // se enviará el archivo directo
+      window._rhFile = file;
+      document.getElementById('rhCvLoaded').style.display = 'block';
+      document.getElementById('rhCvUpload').style.display = 'none';
+      document.getElementById('rhCvName').textContent = file.name;
+      analyzeBtn.disabled = false;
+    });
+
+    // Cambiar CV
+    if (changeBtn) {
+      changeBtn.addEventListener('click', function () {
+        document.getElementById('rhCvLoaded').style.display = 'none';
+        document.getElementById('rhCvUpload').style.display = 'block';
+        rhCvText = null;
+        window._rhFile = null;
+        analyzeBtn.disabled = true;
+      });
+    }
+
+    // Toggle idioma
+    if (langEs) {
+      langEs.addEventListener('click', function () {
+        rhSelectedLang = 'es';
+        langEs.classList.add('active');
+        langEn.classList.remove('active');
+      });
+    }
+
+    if (langEn) {
+      langEn.addEventListener('click', function () {
+        rhSelectedLang = 'en';
+        langEn.classList.add('active');
+        langEs.classList.remove('active');
+      });
+    }
+
+    // ── ANALIZAR ──
+    if (analyzeBtn) {
+      analyzeBtn.addEventListener('click', async function () {
+        document.getElementById('rhUploadZone').style.display = 'none';
+        document.getElementById('rhReport').style.display = 'none';
+        document.getElementById('rhVersions').style.display = 'none';
+        document.getElementById('rhLoading').style.display = 'block';
+
+        const loadingMessages = [
+          'Analizando formato y estructura...',
+          'Evaluando keywords y contenido...',
+          'Revisando criterios ATS...',
+          'Generando reporte detallado...',
+        ];
+        let msgIdx = 0;
+        const msgEl = document.getElementById('rhLoadingText');
+        const msgInterval = setInterval(() => {
+          msgIdx = (msgIdx + 1) % loadingMessages.length;
+          if (msgEl) msgEl.textContent = loadingMessages[msgIdx];
+        }, 2000);
+
+        try {
+          let response;
+
+          if (window._rhFile) {
+            const formData = new FormData();
+            formData.append('cv', window._rhFile);
+            response = await fetch('/api/resume/ats-analyze', { method: 'POST', body: formData });
+          } else if (rhCvText) {
+            response = await fetch('/api/resume/ats-analyze', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cvText: rhCvText, fileName: rhFileName }),
+            });
+          } else {
+            throw new Error('No hay CV para analizar.');
+          }
+
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error);
+
+          rhAtsReport = data.report;
+          if (data.cvText) rhCvText = data.cvText;
+          if (data.fileName) rhFileName = data.fileName;
+
+          clearInterval(msgInterval);
+          document.getElementById('rhLoading').style.display = 'none';
+          renderAtsReport(data.report);
+          document.getElementById('rhReport').style.display = 'block';
+        } catch (err) {
+          clearInterval(msgInterval);
+          document.getElementById('rhLoading').style.display = 'none';
+          document.getElementById('rhUploadZone').style.display = 'block';
+          window.alert('Error al analizar el CV: ' + err.message);
+        }
+      });
+    }
+
+    // ── IMPROVE ──
+    if (improveBtn) {
+      improveBtn.addEventListener('click', async function () {
+        document.getElementById('rhVersions').style.display = 'none';
+        document.getElementById('rhImprovingLoading').style.display = 'block';
+
+        const improvingMessages = [
+          'Generando versiones mejoradas del CV...',
+          'Optimizando contenido para ATS...',
+          'Aplicando mejoras de diseño...',
+          'Casi listo...',
+        ];
+        let msgIdx2 = 0;
+        const msgEl2 = document.getElementById('rhImprovingText');
+        const msgInterval2 = setInterval(() => {
+          msgIdx2 = (msgIdx2 + 1) % improvingMessages.length;
+          if (msgEl2) msgEl2.textContent = improvingMessages[msgIdx2];
+        }, 3000);
+
+        try {
+          const response = await fetch('/api/resume/improve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cvText: rhCvText,
+              atsReport: rhAtsReport,
+              language: rhSelectedLang,
+              fileName: rhFileName,
+            }),
+          });
+
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error);
+
+          rhCvVersion1Html = data.version1.html;
+          rhCvVersion2Html = data.version2.html;
+
+          clearInterval(msgInterval2);
+          document.getElementById('rhImprovingLoading').style.display = 'none';
+          renderVersions(data);
+        } catch (err) {
+          clearInterval(msgInterval2);
+          document.getElementById('rhImprovingLoading').style.display = 'none';
+          window.alert('Error generando el CV mejorado: ' + err.message);
+        }
+      });
+    }
+  });
+
+  // ── RENDER REPORTE ATS ──
+  function renderAtsReport(report) {
+    document.getElementById('rhScoreNumber').textContent = report.scoreGeneral;
+    document.getElementById('rhScoreNivel').textContent = report.nivel;
+    document.getElementById('rhScoreResumen').textContent = report.resumenEjecutivo;
+
+    const color = scoreColor(report.scoreGeneral);
+    document.getElementById('rhScoreNumber').style.color = color;
+
+    const catContainer = document.getElementById('rhCategorias');
+    catContainer.innerHTML = '';
+    Object.values(report.categorias || {}).forEach((cat) => {
+      const card = document.createElement('div');
+      card.className = 'rh-cat-card';
+      const barColor = scoreColor(cat.score);
+      card.innerHTML = `
+        <div class="rh-cat-header">
+          <span class="rh-cat-title">${cat.titulo}</span>
+          <span class="rh-cat-score" style="color:${barColor}">${cat.score}/100</span>
+        </div>
+        <div class="rh-cat-bar">
+          <div class="rh-cat-bar-fill" style="width:${cat.score}%;background:${barColor}"></div>
+        </div>
+        <ul class="rh-cat-hallazgos">
+          ${(cat.hallazgos || []).slice(0, 4).map((h) => `
+            <li class="rh-hallazgo">
+              <span class="rh-hallazgo-icon">${hallazgoIcon(h.tipo)}</span>
+              <span>${h.texto}</span>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+      catContainer.appendChild(card);
+    });
+
+    const problemasBlock = document.getElementById('rhProblemasBlock');
+    if (report.problemasRojos && report.problemasRojos.length > 0) {
+      problemasBlock.style.display = 'block';
+      document.getElementById('rhProblemasList').innerHTML = report.problemasRojos.map((p) => `<li>🔴 ${p}</li>`).join('');
+    } else {
+      problemasBlock.style.display = 'none';
+    }
+
+    const fortalezasBlock = document.getElementById('rhFortalezasBlock');
+    if (report.fortalezas && report.fortalezas.length > 0) {
+      fortalezasBlock.style.display = 'block';
+      document.getElementById('rhFortalezasList').innerHTML = report.fortalezas.map((f) => `<li>${f}</li>`).join('');
+    } else {
+      fortalezasBlock.style.display = 'none';
+    }
+
+    document.getElementById('rhKeywordsDetectadas').innerHTML = (report.keywordsDetectadas || [])
+      .map((k) => `<span class="rh-chip">${k}</span>`).join('');
+
+    document.getElementById('rhKeywordsFaltantes').innerHTML = (report.keywordsFaltantes || [])
+      .map((k) => `<span class="rh-chip">${k}</span>`).join('');
+
+    document.getElementById('rhAccionesList').innerHTML = (report.recomendacionesPrioritarias || [])
+      .map((a) => `<li>${a}</li>`).join('');
+  }
+
+  // ── RENDER VERSIONES ──
+  function renderVersions(data) {
+    document.getElementById('rhV1Title').textContent = data.version1.titulo;
+    document.getElementById('rhV1Desc').textContent = data.version1.descripcion;
+    document.getElementById('rhV2Title').textContent = data.version2.titulo;
+    document.getElementById('rhV2Desc').textContent = data.version2.descripcion;
+
+    function setIframeContent(containerId, html) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      const iframe = document.createElement('iframe');
+      iframe.style.width = '100%';
+      iframe.style.height = '600px';
+      iframe.style.border = '1px solid #E5E7EB';
+      iframe.style.borderRadius = '8px';
+      container.appendChild(iframe);
+      iframe.contentDocument.open();
+      iframe.contentDocument.write(html);
+      iframe.contentDocument.close();
+    }
+
+    setIframeContent('rhV1Preview', data.version1.html);
+    setIframeContent('rhV2Preview', data.version2.html);
+
+    document.getElementById('rhVersions').style.display = 'block';
+    document.getElementById('rhVersions').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── DESCARGA ──
+  window.downloadCV = async function (version, format) {
+    const html = version === 'v1' ? rhCvVersion1Html : rhCvVersion2Html;
+    const baseName = (rhFileName || 'CV').replace(/\.[^.]+$/, '');
+    const vLabel = version === 'v1' ? 'Original' : 'JobFinder';
+    const fileName = `${baseName}_${vLabel}`;
+
+    try {
+      const response = await fetch('/api/resume/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ htmlContent: html, format, fileName }),
+      });
+
+      if (!response.ok) throw new Error('Error generando archivo');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.alert('Error al descargar: ' + err.message);
+    }
+  };
+})();
+

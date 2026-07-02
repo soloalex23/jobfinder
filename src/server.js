@@ -29,6 +29,7 @@ const config = require('./config');
 const jobsRouter = require('./routes/jobs');
 const cvRouter = require('./routes/cv');
 const companiesRouter = require('./routes/companies');
+const atsResumeRouter = require('./routes/atsResume');
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/jobs', jobsRouter);
 app.use('/api/cv', cvRouter);
 app.use('/api/companies', companiesRouter);
+app.use('/api/resume', atsResumeRouter);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {

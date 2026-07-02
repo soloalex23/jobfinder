@@ -473,25 +473,158 @@
 
     <!-- SECCIÓN 2: RESUME HEALTH -->
     <section class="app-section" id="section-resume-health">
-      <div class="coming-soon-container">
-        <div class="coming-soon-icon">📋</div>
-        <h2 class="coming-soon-title">Resume Health</h2>
-        <p class="coming-soon-subtitle">ATS Compliance Analysis &amp; CV Improvement</p>
-        <div class="coming-soon-features">
-          <div class="feature-item">
-            <span class="feature-check">✓</span>
-            <span>ATS compatibility score</span>
+      <div class="rh-container">
+
+        <!-- HEADER -->
+        <div class="rh-header">
+          <h1 class="rh-title">Resume Health</h1>
+          <p class="rh-subtitle">Analiza tu CV contra sistemas ATS con criterios de reclutador senior</p>
+        </div>
+
+        <!-- UPLOAD ZONE -->
+        <div class="rh-upload-zone" id="rhUploadZone">
+
+          <!-- CV ya cargado desde Job Search -->
+          <div class="rh-cv-loaded" id="rhCvLoaded" style="display:none;">
+            <div class="rh-cv-loaded-info">
+              <span class="rh-cv-icon">📄</span>
+              <div>
+                <p class="rh-cv-name" id="rhCvName">—</p>
+                <p class="rh-cv-hint">CV cargado desde Job Search</p>
+              </div>
+              <button class="rh-cv-change" id="rhCvChange">Cambiar CV</button>
+            </div>
           </div>
-          <div class="feature-item">
-            <span class="feature-check">✓</span>
-            <span>Keyword gap analysis</span>
+
+          <!-- Upload nuevo CV -->
+          <div class="rh-cv-upload" id="rhCvUpload">
+            <input type="file" id="rhFileInput" accept=".pdf,.docx" style="display:none;">
+            <div class="rh-dropzone" id="rhDropzone" onclick="document.getElementById('rhFileInput').click()">
+              <span class="rh-drop-icon">📎</span>
+              <p class="rh-drop-text">Arrastra tu CV aquí o <span class="rh-drop-link">selecciona el archivo</span></p>
+              <p class="rh-drop-hint">PDF o DOCX · máx. 5MB</p>
+            </div>
           </div>
-          <div class="feature-item">
-            <span class="feature-check">✓</span>
-            <span>AI-powered CV improvement suggestions</span>
+
+          <!-- Botón analizar -->
+          <button class="rh-analyze-btn" id="rhAnalyzeBtn" disabled>
+            Analizar CV →
+          </button>
+        </div>
+
+        <!-- LOADING -->
+        <div class="rh-loading" id="rhLoading" style="display:none;">
+          <div class="rh-loading-dots"><span></span><span></span><span></span></div>
+          <p class="rh-loading-text" id="rhLoadingText">Analizando formato y estructura...</p>
+        </div>
+
+        <!-- REPORTE ATS -->
+        <div class="rh-report" id="rhReport" style="display:none;">
+
+          <!-- Score general -->
+          <div class="rh-score-card">
+            <div class="rh-score-circle" id="rhScoreCircle">
+              <span class="rh-score-number" id="rhScoreNumber">0</span>
+              <span class="rh-score-label">/ 100</span>
+            </div>
+            <div class="rh-score-info">
+              <span class="rh-score-nivel" id="rhScoreNivel">—</span>
+              <p class="rh-score-resumen" id="rhScoreResumen">—</p>
+            </div>
+          </div>
+
+          <!-- Categorías -->
+          <div class="rh-categorias" id="rhCategorias"></div>
+
+          <!-- Problemas críticos -->
+          <div class="rh-section-block" id="rhProblemasBlock" style="display:none;">
+            <h3 class="rh-block-title rh-block-rojo">⚠️ Problemas Críticos</h3>
+            <ul class="rh-list rh-list-rojo" id="rhProblemasList"></ul>
+          </div>
+
+          <!-- Fortalezas -->
+          <div class="rh-section-block" id="rhFortalezasBlock" style="display:none;">
+            <h3 class="rh-block-title rh-block-verde">✅ Fortalezas</h3>
+            <ul class="rh-list rh-list-verde" id="rhFortalezasList"></ul>
+          </div>
+
+          <!-- Keywords -->
+          <div class="rh-keywords-grid">
+            <div class="rh-section-block">
+              <h3 class="rh-block-title">🔑 Keywords Detectadas</h3>
+              <div class="rh-chips" id="rhKeywordsDetectadas"></div>
+            </div>
+            <div class="rh-section-block">
+              <h3 class="rh-block-title rh-block-naranja">+ Keywords Faltantes</h3>
+              <div class="rh-chips rh-chips-outline" id="rhKeywordsFaltantes"></div>
+            </div>
+          </div>
+
+          <!-- Recomendaciones prioritarias -->
+          <div class="rh-section-block">
+            <h3 class="rh-block-title">📋 Acciones Prioritarias</h3>
+            <ol class="rh-list rh-list-acciones" id="rhAccionesList"></ol>
+          </div>
+
+          <!-- IMPROVE CV -->
+          <div class="rh-improve-card">
+            <div class="rh-improve-header">
+              <h2 class="rh-improve-title">✨ Improve My CV</h2>
+              <p class="rh-improve-desc">Genera dos versiones optimizadas de tu CV basadas en este análisis. Elige el idioma del output:</p>
+            </div>
+            <div class="rh-improve-controls">
+              <div class="rh-lang-toggle">
+                <button class="rh-lang-btn active" data-lang="es" id="rhLangEs">🇨🇴 Español</button>
+                <button class="rh-lang-btn" data-lang="en" id="rhLangEn">🇺🇸 English</button>
+              </div>
+              <button class="rh-improve-btn" id="rhImproveBtn">
+                ✨ Generar CV Mejorado
+              </button>
+            </div>
           </div>
         </div>
-        <span class="coming-soon-badge">Coming Soon</span>
+
+        <!-- LOADING IMPROVE -->
+        <div class="rh-loading" id="rhImprovingLoading" style="display:none;">
+          <div class="rh-loading-dots"><span></span><span></span><span></span></div>
+          <p class="rh-loading-text" id="rhImprovingText">Generando versiones mejoradas del CV...</p>
+        </div>
+
+        <!-- RESULTADO: DOS VERSIONES DEL CV -->
+        <div class="rh-versions" id="rhVersions" style="display:none;">
+          <h2 class="rh-versions-title">Tu CV Mejorado — 2 Versiones</h2>
+
+          <!-- Versión 1 -->
+          <div class="rh-version-card">
+            <div class="rh-version-header">
+              <div>
+                <h3 class="rh-version-title" id="rhV1Title">CV Optimizado — Estructura Original</h3>
+                <p class="rh-version-desc" id="rhV1Desc">—</p>
+              </div>
+              <div class="rh-version-downloads">
+                <button class="rh-dl-btn rh-dl-docx" onclick="downloadCV('v1', 'docx')">⬇ DOCX</button>
+                <button class="rh-dl-btn rh-dl-pdf" onclick="downloadCV('v1', 'pdf')">⬇ PDF</button>
+              </div>
+            </div>
+            <div class="rh-version-preview" id="rhV1Preview"></div>
+          </div>
+
+          <!-- Versión 2 -->
+          <div class="rh-version-card">
+            <div class="rh-version-header">
+              <div>
+                <h3 class="rh-version-title" id="rhV2Title">CV Profesional — Diseño JobFinder</h3>
+                <p class="rh-version-desc" id="rhV2Desc">—</p>
+              </div>
+              <div class="rh-version-downloads">
+                <button class="rh-dl-btn rh-dl-docx" onclick="downloadCV('v2', 'docx')">⬇ DOCX</button>
+                <button class="rh-dl-btn rh-dl-pdf" onclick="downloadCV('v2', 'pdf')">⬇ PDF</button>
+              </div>
+            </div>
+            <div class="rh-version-preview" id="rhV2Preview"></div>
+          </div>
+        </div>
+
       </div>
     </section>
 
